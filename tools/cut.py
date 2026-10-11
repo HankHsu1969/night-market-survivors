@@ -3,9 +3,11 @@
 # 一般物件，一個物件存一張 PNG（依由上到下、由左到右的順序對應名稱）：
 #   python tools/cut.py cut  素材表.png 輸出資料夾 列數 名稱1,名稱2,... 最長邊像素
 #   例如：python tools/cut.py cut sheet.png cut 1 pearl,skewer,stool 200
-# 動畫分解圖，同一個角色的幾格存成一條橫的 WebP，每格一樣大、腳底對齊、頭和身體對準格子中間：
-#   python tools/cut.py anim 動畫表.png 輸出.webp 格數 高度像素
+# 動畫分解圖，同一個角色的幾格存成一條橫的 WebP，每格一樣大、頭和身體對準格子中間，
+# 腳底對齊同一列的地面（跑步騰空那幾格會保留離地的高度）。分解圖排成幾列就填列數，由上到下、由左到右：
+#   python tools/cut.py anim 動畫表.png 輸出.webp 格數 高度像素 [列數]
 #   例如：python tools/cut.py anim walk.png cut/ol.webp 4 200
+#         python tools/cut.py anim run8.png cut/hero1.webp 8 220 2
 # 每次都會在輸出位置旁邊存一張 _preview_*.png 給你檢查，確認沒問題再複製到 assets/。
 import sys, os
 from collections import deque
@@ -56,7 +58,7 @@ def objects(alpha):
     return lab, big
 
 
-def crop(rgba, lab, c):
+def crop(rgba, lab, c, bottom=False):
     """Only this object's pixels, never a neighbour's, cropped to its bounding box."""
     H, W = rgba.shape[:2]
     own = np.isin(lab, c[5]).repeat(F, 0).repeat(F, 1)
@@ -64,8 +66,9 @@ def crop(rgba, lab, c):
     own = np.asarray(Image.fromarray(own.astype(np.uint8) * 255).filter(ImageFilter.MaxFilter(5))) > 0
     mine = rgba.copy(); mine[..., 3] = np.where(own, mine[..., 3], 0)
     box = (max(0, c[0] * F - 6), max(0, c[1] * F - 6), min(W, c[2] * F + 6), min(H, c[3] * F + 6))
-    im = Image.fromarray(mine, 'RGBA').crop(box)
-    return im.crop(im.getbbox())
+    im = Image.fromarray(mine, 'RGBA').crop(box); bb = im.getbbox()
+    if bottom: return im.crop(bb), box[1] + bb[3]   # also where its lowest pixel sits on the sheet
+    return im.crop(bb)
 
 
 def preview(ims, path, gap=10):
@@ -91,34 +94,45 @@ def cut(src, outdir, rows, names, maxpx):
     preview([o.copy() for o in outs], os.path.join(outdir, '_preview_' + os.path.basename(src)))
 
 
-def anim(src, dst, n, height):
+def anim(src, dst, n, height, rows=1):
     rgba, alpha = key_out(src); lab, big = objects(alpha)
-    big.sort(key=lambda c: c[0]); frames = []
-    for c in big:   # pieces that overlap left-to-right belong to the same frame
-        if frames and c[0] < frames[-1][2] - 2:
-            f = frames[-1]; f[0], f[1], f[2], f[3] = min(f[0], c[0]), min(f[1], c[1]), max(f[2], c[2]), max(f[3], c[3]); f[5] += c[5]
-        else: frames.append(c)
+    big.sort(key=lambda c: (c[1] + c[3]) / 2)
+    ys = [(c[1] + c[3]) / 2 for c in big]   # split into rows at the widest vertical gaps
+    cuts = sorted(sorted(range(1, len(big)), key=lambda i: ys[i] - ys[i - 1])[-(rows - 1):]) if rows > 1 else []
+    groups = [big[i:j] for i, j in zip([0] + cuts, cuts + [len(big)])]
+    frames, row_of = [], []
+    for r, grp in enumerate(groups):
+        grp.sort(key=lambda c: c[0]); row = []
+        for c in grp:   # a piece that sits mostly inside the previous frame's left-to-right span belongs to that frame
+            if row and min(row[-1][2], c[2]) - c[0] > 0.5 * (c[2] - c[0]):
+                f = row[-1]; f[0], f[1], f[2], f[3] = min(f[0], c[0]), min(f[1], c[1]), max(f[2], c[2]), max(f[3], c[3]); f[5] += c[5]
+            else: row.append(c)
+        frames += row; row_of += [r] * len(row)
     if len(frames) != n:
         print('找到', len(frames), '格，預期', n, '格，請重產這張'); sys.exit(1)
-    ims = [crop(rgba, lab, c) for c in frames]
+    got = [crop(rgba, lab, c, bottom=True) for c in frames]
+    base = {r: max(b for (_, b), rr in zip(got, row_of) if rr == r) for r in set(row_of)}
+    lift = [base[r] - b for (_, b), r in zip(got, row_of)]   # how far a frame's feet are off its row's ground (a jump in a run cycle)
+    ims = [i for i, _ in got]
     s = height / max(i.height for i in ims)
     ims = [i.resize((max(1, round(i.width * s)), max(1, round(i.height * s))), Image.LANCZOS) for i in ims]
+    lift = [l * s for l in lift]
     anchors = []
     for i in ims:   # centre on the head and body, not on the swinging legs
         a = np.asarray(i)[..., 3].astype(np.float32)[: int(i.height * 0.55)]
         cols = a.sum(0); anchors.append(float((cols * np.arange(len(cols))).sum() / max(cols.sum(), 1)))
     left = max(anchors); right = max(i.width - a for i, a in zip(ims, anchors))
-    cw, ch = int(np.ceil(left + right)) + 2, max(i.height for i in ims)
+    cw, ch = int(np.ceil(left + right)) + 2, int(np.ceil(max(i.height + l for i, l in zip(ims, lift))))
     strip = Image.new('RGBA', (cw * n, ch), (0, 0, 0, 0))
-    for k, (i, a) in enumerate(zip(ims, anchors)): strip.alpha_composite(i, (k * cw + round(left - a) + 1, ch - i.height))
+    for k, (i, a, l) in enumerate(zip(ims, anchors, lift)): strip.alpha_composite(i, (k * cw + round(left - a) + 1, round(ch - i.height - l)))
     os.makedirs(os.path.dirname(dst) or '.', exist_ok=True)
     strip.save(dst, 'WEBP', quality=90, method=6)
     preview([strip], os.path.join(os.path.dirname(dst) or '.', '_preview_' + os.path.splitext(os.path.basename(dst))[0] + '.png'))
-    print(os.path.basename(dst), '每格', cw, 'x', ch)
+    print(os.path.basename(dst), '每格', cw, 'x', ch, '離地', [round(l) for l in lift])
 
 
 if __name__ == '__main__':
     mode = sys.argv[1]
     if mode == 'cut': cut(sys.argv[2], sys.argv[3], int(sys.argv[4]), sys.argv[5].split(','), int(sys.argv[6]))
-    elif mode == 'anim': anim(sys.argv[2], sys.argv[3], int(sys.argv[4]), int(sys.argv[5]))
+    elif mode == 'anim': anim(sys.argv[2], sys.argv[3], int(sys.argv[4]), int(sys.argv[5]), int(sys.argv[6]) if len(sys.argv) > 6 else 1)
     else: print('第一個參數要是 cut 或 anim')

@@ -122,7 +122,28 @@ h1{font-size:clamp(2.4rem,12vw,4.4rem);line-height:1.1;letter-spacing:.04em;whit
 /* Cards: fluorescent paper price signs (stage list and upgrade choices) */
 .lvtitle{font-size:clamp(1.5rem,6.5vw,2rem);color:var(--bulb);text-shadow:3px 3px 0 var(--ink)}
 .cards{display:grid;gap:16px;width:100%;grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
-#stageCards{max-width:460px;grid-template-columns:1fr}
+/* Stage list: one lit signboard per street */
+.stages{display:grid;gap:18px;width:100%;grid-template-columns:repeat(auto-fill,minmax(min(100%,272px),1fr))}
+.stage{position:relative;cursor:pointer;display:flex;flex-direction:column;padding:0;border:3px solid var(--paper);border-radius:14px;overflow:hidden;
+  background:var(--ink);color:var(--paper);text-align:left;box-shadow:0 6px 0 var(--sign-red-deep),0 12px 26px rgba(0,0,0,.45);transition:transform .15s ease}
+.stage:not(:disabled):hover{transform:translateY(-4px)}
+.stage:not(:disabled):active{transform:translateY(3px);box-shadow:0 3px 0 var(--sign-red-deep)}
+.stage:disabled{cursor:not-allowed;border-color:var(--line);box-shadow:0 6px 0 rgba(0,0,0,.4)}
+.sart{position:relative;display:block;aspect-ratio:16/8;background:var(--night) var(--thumb) center/cover no-repeat}
+.sart::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(15,12,34,0) 50%,rgba(15,12,34,.8) 100%)}
+.stage:disabled .sart{filter:grayscale(1) brightness(.4)}
+.snum{position:absolute;z-index:1;left:12px;top:10px;width:44px;height:54px;display:grid;place-items:center;border-radius:48% 48% 42% 42%;
+  background:radial-gradient(circle at 40% 32%,#ff8a66,var(--sign-red) 58%,var(--sign-red-deep));border:2px solid var(--bulb);
+  color:var(--bulb);font:400 1.45rem/1 var(--font-num);text-shadow:1px 1px 0 var(--ink);box-shadow:0 0 18px rgba(255,120,80,.65)}
+.sface{position:absolute;z-index:1;right:4%;bottom:2%;height:94%;background:no-repeat 0 0/400% 100%;filter:drop-shadow(0 4px 6px rgba(0,0,0,.6))}
+.sbadge{position:absolute;z-index:2;left:66px;top:12px;padding:2px 10px;font:900 .9rem/1.4 var(--font-sign);background:var(--ink);border:2px solid var(--paper);border-radius:4px}
+.sbadge.done{background:var(--paper);color:var(--sign-red);border-color:var(--sign-red);transform:rotate(-6deg)}
+.sinfo{display:flex;flex-direction:column;gap:4px;padding:10px 14px 14px}
+.sinfo strong{font:900 1.3rem/1.25 var(--font-sign);color:var(--bulb)}
+.sdesc{font-size:.95rem;line-height:1.4}
+.smeta{display:flex;align-items:center;gap:6px;font-size:.88rem;color:var(--fluo-yellow)}
+.smeta img{width:26px;height:26px;object-fit:contain}
+.stage:disabled .sinfo{opacity:.55}
 .card{--tilt:-1deg;cursor:pointer;border:0;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;
   min-height:84px;padding:14px 14px 14px 16px;text-align:left;background:var(--fluo-yellow);color:var(--ink);
   transform:rotate(var(--tilt));box-shadow:4px 5px 0 rgba(0,0,0,.5)}
@@ -148,6 +169,11 @@ h1{font-size:clamp(2.4rem,12vw,4.4rem);line-height:1.1;letter-spacing:.04em;whit
   .card{animation:pop .22s cubic-bezier(.2,1.4,.4,1) backwards}
   .card:nth-child(2){animation-delay:.05s}
   .card:nth-child(3){animation-delay:.1s}
+  .stage{animation:pop .3s cubic-bezier(.2,1.4,.4,1) backwards}
+  .stage:nth-child(2){animation-delay:.05s}
+  .stage:nth-child(3){animation-delay:.1s}
+  .stage:nth-child(4){animation-delay:.15s}
+  .stage:nth-child(5){animation-delay:.2s}
   .tapgo:not(:disabled){animation:blink 1.2s ease-in-out infinite}
   .lvbanner.show{animation:slideup .25s cubic-bezier(.2,1.4,.4,1)}
 }
@@ -178,7 +204,7 @@ h1{font-size:clamp(2.4rem,12vw,4.4rem);line-height:1.1;letter-spacing:.04em;whit
   <div class="lvbanner" id="lvbanner" role="status" aria-live="polite" hidden>
     <img id="lvIcon" alt=""><div><b id="lvName"></b><span id="lvDesc"></span></div>
   </div>
-  <div class="bossbar" id="bossbar" hidden><span>夜市霸王</span><b><i id="bossfill"></i></b></div>
+  <div class="bossbar" id="bossbar" hidden><span id="bossname">夜市霸王</span><b><i id="bossfill"></i></b></div>
   <div id="toast" role="status" aria-live="polite" hidden></div>
 
   <section class="cover" id="scrCover">
@@ -194,14 +220,17 @@ h1{font-size:clamp(2.4rem,12vw,4.4rem);line-height:1.1;letter-spacing:.04em;whit
 
   <section class="scr" id="scrStart" hidden>
     <div class="box wide">
-      <div class="sign solo"><h2>選一關開始擺攤</h2></div>
+      <div class="marquee"><div class="sign">
+        <p class="kicker">NIGHT MARKET SURVIVORS</p>
+        <h2>選一條街開始擺攤</h2>
+      </div></div>
+      <div class="stages" id="stageCards"></div>
       <ul class="howto">
         <li>按住畫面拖曳走位（電腦用方向鍵或 WASD）</li>
-        <li>武器會自動攻擊，你只要專心躲</li>
+        <li>武器會自動攻擊，每一關主角帶的工具都不一樣</li>
         <li>撿百元鈔衝營業額，升級時自動變強</li>
-        <li>完成這關的任務就能收攤過關</li>
+        <li>完成這關的任務就能收攤，解鎖下一條街</li>
       </ul>
-      <div class="cards" id="stageCards"></div>
       <div class="row">
         <button class="textbtn" id="btnMode" type="button" aria-pressed="false">升級：自動挑</button>
         <button class="textbtn snd" id="btnSound1" type="button" aria-pressed="true">音效：開</button>
@@ -255,8 +284,9 @@ document.documentElement.lang = 'zh-Hant';
 const TAU = Math.PI * 2;
 const CELL = 72;            // spatial grid cell (>= largest pair of radii)
 const TILE = 256;           // ground tile size in world units
+const SLOTS = 3;            // how many different weapons you can carry
 const C = { ground:'#1c1836', ink:'#1a1320', paper:'#fff4dc', red:'#e23b2e', bulb:'#ffcf4a', xp:'#45e0c0',
-            hp:'#6fe07a', tofu:'#d8f06e', warn:'rgba(255,80,60,.5)', stick:'#c9a26b', shadow:'rgba(0,0,0,.36)' };
+            hp:'#6fe07a', tofu:'#d8f06e', ice:'#9fe3ff', warn:'rgba(255,80,60,.5)', stick:'#c9a26b', shadow:'rgba(0,0,0,.36)' };
 const $ = id => document.getElementById(id);
 const rnd = (a, b) => a + Math.random() * (b - a);
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
@@ -269,7 +299,7 @@ const gameEl = $('game'), cv = $('cv'), ctx = cv.getContext('2d');
 const el = {
   hud:$('hud'), xp:$('xpfill'), lv:$('lv'), kills:$('kills'), money:$('money'), build:$('build'), quests:$('quests'),
   hurt:$('hurt'), toast:$('toast'), banner:$('lvbanner'), bIcon:$('lvIcon'), bName:$('lvName'), bDesc:$('lvDesc'),
-  bossbar:$('bossbar'), bossfill:$('bossfill'),
+  bossbar:$('bossbar'), bossname:$('bossname'), bossfill:$('bossfill'),
   cover:$('scrCover'), loadfill:$('loadfill'), btnCover:$('btnCover'),
   start:$('scrStart'), level:$('scrLevel'), pause:$('scrPause'), end:$('scrEnd'),
   stageCards:$('stageCards'), btnMode:$('btnMode'), cards:$('cards'), lvTitle:$('lvTitle'),
@@ -278,61 +308,100 @@ const el = {
 };
 
 /* ---------- content tables ---------- */
-// ht: drawn height. ranged: keeps its distance and throws skewers. dash: stops, aims, then charges.
+// Customers, grouped by the stage they belong to. ht: drawn height. fps: walk animation speed.
+// ranged: keeps its distance and throws that projectile. dash: stops, aims, then charges.
+// burst (bosses): [shots per ring, seconds between rings, speed, projectile].
 const ENEMY = {
-  walker: { name:'路人',       r:12, ht:44,  hp:6,    spd:50, dmg:8,  xp:1,  col:'#b9a2ff' },
-  runner: { name:'快腳學生',   r:10, ht:42,  hp:4,    spd:88, dmg:6,  xp:1,  col:'#ff86bd', angry:true },
-  eater:  { name:'大胃王',     r:19, ht:60,  hp:45,   spd:36, dmg:14, xp:5,  col:'#ff9d4a' },
-  thrower:{ name:'丟竹籤阿桑', r:13, ht:46,  hp:16,   spd:46, dmg:7,  xp:3,  col:'#ffcf4a', ranged:true },
-  charger:{ name:'外送員',     r:13, ht:46,  hp:20,   spd:54, dmg:12, xp:3,  col:'#5ab8ff', angry:true, dash:true },
-  critic: { name:'美食評論家', r:24, ht:78,  hp:220,  spd:46, dmg:20, xp:30, col:'#c0396b', angry:true, crown:true, elite:true },
-  boss:   { name:'夜市霸王',   r:42, ht:132, hp:1300, spd:36, dmg:28, xp:25, col:'#e23b2e', angry:true, crown:true, elite:true, boss:true },
+  salary:    { name:'上班族大叔',     r:12, ht:46,  hp:6,    spd:50,  dmg:8,  xp:1,  col:'#b9a2ff', fps:7 },
+  ol:        { name:'粉領族',         r:11, ht:46,  hp:5,    spd:56,  dmg:7,  xp:1,  col:'#ff9ecf', fps:8 },
+  schoolgirl:{ name:'女高中生',       r:10, ht:44,  hp:4,    spd:88,  dmg:6,  xp:1,  col:'#7fb8ff', fps:11 },
+  critic:    { name:'美食評論家',     r:24, ht:78,  hp:220,  spd:46,  dmg:20, xp:30, col:'#c0396b', fps:6, elite:true },
+
+  tourist:   { name:'觀光客阿姨',     r:13, ht:46,  hp:9,    spd:48,  dmg:8,  xp:1,  col:'#ffb36b', fps:7 },
+  eater:     { name:'大胃王',         r:19, ht:60,  hp:45,   spd:36,  dmg:14, xp:5,  col:'#ff9d4a', fps:6 },
+  auntie:    { name:'丟竹籤阿桑',     r:13, ht:46,  hp:16,   spd:46,  dmg:7,  xp:3,  col:'#ffcf4a', fps:7, ranged:'skewer' },
+  influencer:{ name:'美食網紅',       r:22, ht:76,  hp:260,  spd:50,  dmg:18, xp:30, col:'#b06cff', fps:7, elite:true },
+
+  student:   { name:'快腳學生',       r:10, ht:44,  hp:5,    spd:92,  dmg:7,  xp:1,  col:'#ff86bd', fps:12 },
+  grandma:   { name:'廟口阿嬤',       r:15, ht:46,  hp:60,   spd:32,  dmg:14, xp:5,  col:'#e2584b', fps:5 },
+  rider:     { name:'外送員',         r:13, ht:46,  hp:20,   spd:54,  dmg:12, xp:3,  col:'#5ab8ff', fps:10, dash:true },
+  host:      { name:'美食節目主持人', r:22, ht:76,  hp:300,  spd:50,  dmg:20, xp:30, col:'#e23b2e', fps:7, elite:true },
+  king:      { name:'夜市霸王',       r:42, ht:132, hp:600,  spd:36,  dmg:28, xp:25, col:'#e23b2e', fps:5, elite:true, boss:true, dash:true, burst:[14, 3.6, 150, 'skewer'] },
+
+  kid:       { name:'小朋友',         r:9,  ht:36,  hp:5,    spd:100, dmg:6,  xp:1,  col:'#ffd23a', fps:13 },
+  mom:       { name:'推車媽媽',       r:15, ht:48,  hp:30,   spd:52,  dmg:13, xp:3,  col:'#c9a2ff', fps:9, dash:true },
+  gunner:    { name:'射氣球姐姐',     r:12, ht:46,  hp:18,   spd:46,  dmg:8,  xp:3,  col:'#7fb8ff', fps:7, ranged:'dart' },
+  clawqueen: { name:'娃娃機女王',     r:24, ht:78,  hp:360,  spd:48,  dmg:22, xp:30, col:'#ff86bd', fps:6, elite:true },
+
+  fan:       { name:'追星粉絲',       r:12, ht:46,  hp:12,   spd:54,  dmg:9,  xp:1,  col:'#ff86bd', fps:8 },
+  dancer:    { name:'歌舞團姐姐',     r:11, ht:48,  hp:8,    spd:96,  dmg:8,  xp:1,  col:'#ff5a5a', fps:12 },
+  guard:     { name:'保全大叔',       r:18, ht:58,  hp:90,   spd:36,  dmg:16, xp:5,  col:'#3f5aa8', fps:5 },
+  pageant:   { name:'夜市小姐',       r:22, ht:80,  hp:340,  spd:50,  dmg:24, xp:30, col:'#fff4dc', fps:6, elite:true },
+  queen:     { name:'大胃女王',       r:46, ht:140, hp:1000, spd:40,  dmg:32, xp:25, col:'#8e3ccf', fps:5, elite:true, boss:true, dash:true, burst:[18, 3, 165, 'dart'] },
 };
 for (const k in ENEMY) ENEMY[k].key = k;
 
-// Each stage gets busier: more customers per second, tougher customers, new kinds of customers.
-// rate: [per second at the start, extra per second for every second that passes]. mix: [kind, first second, weight].
-// elite: [first critic, then every]. quests: finish all of them to close the stall; there is no time limit.
+// Each stage brings its own customers and a different tool for the vendor, and gets busier than the last.
+// rate: [per second at the start, extra per second for every second that passes]. mix: [kind, first second, weight];
+// the first kind also forms the rings. elite: [kind, first one, then every]. xpMul: later stages level up faster.
+// quests: finish all of them to close the stall; there is no time limit. A boss shows up once the other quests are done.
 const STAGES = [
-  { name:'第一關', place:'夜市入口', ground:0, hpGrow:0.25, rate:[0.7, 0.011], cap:140, ringN:14,
-    mix:[['walker', 0, 1], ['runner', 60, 0.25]], elite:[75, 75], rings:[140, 260],
-    quests:[{ k:'kills', n:150 }, { k:'money', n:15000 }, { k:'slay', e:'critic', n:1 }],
+  { name:'第一關', place:'夜市入口',   tool:'pearl',   hpGrow:0.25, rate:[0.7, 0.011],  cap:140, xpMul:1,
+    mix:[['salary', 0, 1], ['ol', 0, 0.8], ['schoolgirl', 50, 0.35]], elite:['critic', 70, 70], rings:[140, 260], ringN:14,
+    quests:[{ k:'kills', n:180 }, { k:'money', n:18000 }, { k:'slay', e:'critic', n:2 }],
     desc:'客人比較少，先熟悉走位和升級' },
-  { name:'第二關', place:'美食街', ground:1, hpGrow:0.35, rate:[1.0, 0.02], cap:220, ringN:22,
-    mix:[['walker', 0, 1], ['runner', 15, 0.3], ['eater', 45, 0.14], ['thrower', 60, 0.14]], elite:[60, 60], rings:[120, 210, 300],
-    quests:[{ k:'kills', n:400 }, { k:'slay', e:'thrower', n:10 }, { k:'slay', e:'critic', n:2 }],
-    desc:'大胃王和會丟竹籤的阿桑出現了' },
-  { name:'第三關', place:'廟口廣場', ground:2, hpGrow:0.4, rate:[1.1, 0.024], cap:300, ringN:26,
-    mix:[['walker', 0, 1], ['runner', 10, 0.3], ['charger', 35, 0.13], ['eater', 50, 0.15], ['thrower', 70, 0.13]], elite:[70, 60], rings:[130, 210, 290],
-    quests:[{ k:'kills', n:600 }, { k:'slay', e:'charger', n:12 }, { k:'boss', n:1 }],
+  { name:'第二關', place:'美食街',     tool:'cutlet',  hpGrow:0.32, rate:[0.95, 0.018], cap:200, xpMul:1.5,
+    mix:[['tourist', 0, 1], ['eater', 40, 0.16], ['auntie', 50, 0.16]], elite:['influencer', 60, 65], rings:[120, 220], ringN:20,
+    quests:[{ k:'kills', n:350 }, { k:'slay', e:'auntie', n:10 }, { k:'slay', e:'influencer', n:3 }],
+    desc:'大胃王擋路，阿桑會丟竹籤' },
+  { name:'第三關', place:'廟口廣場',   tool:'sausage', hpGrow:0.38, rate:[1.05, 0.022], cap:260, xpMul:1.8, boss:'king',
+    mix:[['student', 0, 1], ['grandma', 30, 0.18], ['rider', 40, 0.14]], elite:['host', 60, 60], rings:[130, 220], ringN:24,
+    quests:[{ k:'kills', n:300 }, { k:'slay', e:'rider', n:10 }, { k:'boss', n:1 }],
     desc:'外送員會衝刺，最後要打倒夜市霸王' },
+  { name:'第四關', place:'夜市遊戲街', tool:'qq',      hpGrow:0.45, rate:[1.15, 0.027], cap:280, xpMul:2.1,
+    mix:[['kid', 0, 1], ['mom', 30, 0.16], ['gunner', 45, 0.16]], elite:['clawqueen', 60, 60], rings:[110, 200, 290], ringN:26,
+    quests:[{ k:'kills', n:700 }, { k:'slay', e:'mom', n:12 }, { k:'slay', e:'clawqueen', n:2 }],
+    desc:'小朋友跑超快，推車媽媽會衝撞，姐姐射飛鏢' },
+  { name:'第五關', place:'夜市大舞台', tool:'ice',     hpGrow:0.58, rate:[1.4, 0.036],  cap:300, xpMul:2.4, boss:'queen',
+    mix:[['fan', 0, 1], ['dancer', 20, 0.35], ['guard', 40, 0.16]], elite:['pageant', 55, 60], rings:[100, 190, 280], ringN:28,
+    quests:[{ k:'kills', n:450 }, { k:'slay', e:'pageant', n:2 }, { k:'boss', n:1 }],
+    desc:'最終關：粉絲擠爆舞台，大胃女王壓軸登場' },
 ];
 
-// Few levels, big steps: every upgrade should be felt right away.
+// Few levels, big steps: every upgrade should be felt right away. Weapons first, then helpers.
 const ITEMS = {
-  pearl:  { name:'珍珠',   icon:'tea',     ch:'珍', max:5, weapon:true,
+  pearl:  { name:'珍珠',   icon:'tea',     max:5, weapon:true,
             desc:l => ['', '自動朝最近的客人發射珍珠', '一次多射 1 顆，傷害 +30%', '再多射 1 顆，還能穿透 1 位客人', '傷害 +50%，射速 +40%', '一次再多射 2 顆，再多穿透 1 位'][l] },
-  tofu:   { name:'臭豆腐', icon:'tofu',    ch:'臭', max:5, weapon:true,
+  sausage:{ name:'烤香腸', icon:'sausage', max:5, weapon:true,
+            desc:l => ['', '三根香腸繞著你轉，撞到就痛，還能擋飛來的東西', '變成 4 根香腸', '傷害 +60%，轉得更快', '變成 5 根，轉的圈圈變大', '變成 7 根，傷害再 +40%'][l] },
+  cutlet: { name:'雞排',   icon:'cutlet',  max:5, weapon:true,
+            desc:l => ['', '大雞排像迴旋鏢一樣飛出去再飛回來，一路打到底', '一次丟 2 塊雞排', '傷害 +50%，飛得更遠', '一次丟 3 塊，冷卻 −25%', '超大雞排：範圍變大，傷害再 +50%'][l] },
+  qq:     { name:'地瓜球', icon:'qq',      max:5, weapon:true,
+            desc:l => ['', '地瓜球打中客人後會彈去打下一位', '每顆多彈 2 次', '多 1 顆，傷害 +40%', '再多 1 顆，每顆再多彈 2 次', '傷害 +60%，每顆再多彈 3 次'][l] },
+  ice:    { name:'剉冰',   icon:'ice',     max:5, weapon:true,
+            desc:l => ['', '每隔幾秒噴出一圈冰霧，把附近的客人凍住', '冰霧範圍變大，傷害 +50%', '凍住的時間變兩倍', '冷卻 −30%，範圍再變大', '超級冰：傷害加倍，凍得更久'][l] },
+  tofu:   { name:'臭豆腐', icon:'tofu',    max:5, weapon:true,
             desc:l => ['', '身邊飄出一圈臭味，靠近的客人持續受傷', '臭味範圍變大，傷害 +75%', '客人被臭到走不動，速度 −35%', '臭味範圍再變大，傷害再 +75%', '臭到極點：傷害加倍'][l] },
-  sausage:{ name:'烤香腸', icon:'sausage', ch:'腸', max:5, weapon:true,
-            desc:l => ['', '兩根香腸繞著你轉，撞到就痛，還能擋竹籤', '變成 3 根香腸', '傷害 +60%，轉得更快', '變成 4 根，轉的圈圈變大', '變成 6 根，傷害再 +40%'][l] },
-  slipper:{ name:'夾腳拖', icon:'slipper', ch:'拖', max:3, desc:() => '移動速度 +20%' },
-  purse:  { name:'零錢包', icon:'purse',   ch:'包', max:3, desc:() => '撿錢的範圍 +60%' },
-  rice:   { name:'滷肉飯', icon:'rice',    ch:'飯', max:3, desc:() => '血量上限 +40 並回復 40，之後每秒自動回血' },
-  straw:  { name:'粗吸管', icon:'straw',   ch:'管', max:3, desc:() => '所有武器的冷卻時間 −15%' },
-  chili:  { name:'加辣',   icon:'chili',   ch:'辣', max:3, desc:() => '所有武器的傷害 +25%' },
+  slipper:{ name:'夾腳拖', icon:'slipper', max:3, desc:() => '移動速度 +20%' },
+  purse:  { name:'零錢包', icon:'purse',   max:3, desc:() => '撿錢的範圍 +60%' },
+  rice:   { name:'滷肉飯', icon:'rice',    max:3, desc:() => '血量上限 +40 並回復 40，之後每秒自動回血' },
+  straw:  { name:'粗吸管', icon:'straw',   max:3, desc:() => '所有武器的冷卻時間 −15%' },
+  chili:  { name:'加辣',   icon:'chili',   max:3, desc:() => '所有武器的傷害 +25%' },
 };
-const HEAL = { name:'雞排', icon:'cutlet', ch:'排', desc:() => '回復 50 血量' };
-const need = l => Math.floor(10 + 6 * l + 1.2 * l * l);
+const HEAL = { name:'便當', icon:'bento', desc:() => '回復 50 血量' };
+const need = l => Math.floor(6 + 4 * l + 0.8 * l * l);
 
 /* ---------- art: generated pictures in assets/, with drawn shapes as a fallback ---------- */
-const ART_PNG = ['player', 'walker', 'runner', 'eater', 'thrower', 'charger', 'critic', 'boss',
-  'tea', 'tofu', 'sausage', 'slipper', 'purse', 'rice', 'straw', 'chili', 'cutlet',
-  'pearl', 'skewer', 'stool', 'lantern', 'chest', 'bill1', 'bill5', 'bill25'];
-const ART_JPG = ['ground1', 'ground2', 'ground3'];
+// .webp files are walk cycles laid side by side; every frame is the same size with the ground on the bottom edge.
+// Customers have 4 frames. The vendor has an 8-frame run (heroN) and a 4-frame idle (heroN_idle) for each stage's tool.
+const HERO = ['hero1', 'hero2', 'hero3', 'hero4', 'hero5'];
+const ART_ANIM = HERO.concat(HERO.map(h => h + '_idle'), Object.keys(ENEMY));
+const ART_PNG = ['tea', 'tofu', 'sausage', 'cutlet', 'qq', 'ice', 'slipper', 'purse', 'rice', 'straw', 'chili', 'bento',
+  'pearl', 'qqball', 'shard', 'skewer', 'dart', 'stool', 'lantern', 'chest', 'bill1', 'bill5', 'bill25'];
+const ART_JPG = ['ground1', 'ground2', 'ground3', 'ground4', 'ground5', 'stage1', 'stage2', 'stage3', 'stage4', 'stage5'];
 const ART = {};
 function loadArt(onStep) {
-  const all = ART_PNG.map(n => [n, 'png']).concat(ART_JPG.map(n => [n, 'jpg']));
+  const all = ART_ANIM.map(n => [n, 'webp']).concat(ART_PNG.map(n => [n, 'png']), ART_JPG.map(n => [n, 'jpg']));
   let done = 0;
   const load = Promise.all(all.map(([n, ext]) => new Promise(res => {
     const im = new Image(), fin = () => { done++; onStep(done / all.length); res(); };
@@ -340,7 +409,7 @@ function loadArt(onStep) {
     im.onerror = fin;
     im.src = 'assets/' + n + '.' + ext;
   })));
-  return Promise.race([load, new Promise(res => setTimeout(res, 12000))]);
+  return Promise.race([load, new Promise(res => setTimeout(res, 15000))]);
 }
 
 /* ---------- sprites (drawn once, blitted every frame) ---------- */
@@ -352,18 +421,18 @@ function sprite(w, h, draw) {
     const g = c.getContext('2d'); g.imageSmoothingQuality = 'high'; g.scale(k, k); g.translate(w / 2, h / 2); g.lineJoin = 'round'; g.lineCap = 'round';
     draw(g, withShadow); return c;
   };
-  const img = mk(true), flash = mk(false), fg = flash.getContext('2d');
-  fg.setTransform(1, 0, 0, 1, 0, 0); fg.globalCompositeOperation = 'source-in'; fg.fillStyle = '#fff'; fg.fillRect(0, 0, flash.width, flash.height);
-  return { img, flash, w, h, oy:0 };
+  const tint = col => { const c = mk(false), g = c.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-in'; g.fillStyle = col; g.fillRect(0, 0, c.width, c.height); return c; };
+  const sp = { img:mk(true), w, h, oy:0, ice:null };
+  sp.flash = tint('#fff');
+  sp.frost = () => sp.ice || (sp.ice = tint(C.ice));   // only made once something actually gets frozen
+  return sp;
 }
 const dot = (g, x, y, r, fill) => { g.fillStyle = fill; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill(); };
 const oval = (g, x, y, rx, ry, fill) => { g.fillStyle = fill; g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, TAU); g.fill(); };
 
-// A generated picture as a sprite. With `foot`, it is sized by height and stands with its feet `foot` units
-// below the anchor (characters); otherwise it is sized by its longest side and centred on the anchor.
-function pic(im, size, shadowR, foot, rot) {
-  const s = foot === undefined ? size / Math.max(im.width, im.height) : size / im.height;
-  const w = im.width * s, h = im.height * s, sr = shadowR || 0, pad = 3, box = rot ? Math.hypot(w, h) : 0;
+// A generated picture as a sprite, sized by its longest side and centred on the anchor.
+function pic(im, size, shadowR, rot) {
+  const s = size / Math.max(im.width, im.height), w = im.width * s, h = im.height * s, sr = shadowR || 0, pad = 3, box = rot ? Math.hypot(w, h) : 0;
   const W = Math.max(box || w, sr * 2) + pad * 2, H = (box || h) + pad * 2 + sr * 0.5;
   const top = -H / 2 + pad, bot = top + (box || h);
   const sp = sprite(W, H, (g, sh) => {
@@ -371,32 +440,32 @@ function pic(im, size, shadowR, foot, rot) {
     if (rot) { g.save(); g.translate(0, (top + bot) / 2); g.rotate(rot); g.drawImage(im, -w / 2, -h / 2, w, h); g.restore(); }
     else g.drawImage(im, -w / 2, top, w, h);
   });
-  sp.oy = foot === undefined ? -(top + bot) / 2 : foot - bot;
+  sp.oy = -(top + bot) / 2;
   return sp;
+}
+// A walk cycle: n frames from one strip, `ht` units tall, feet `foot` units below the anchor.
+function walk(im, n, ht, shadowR, foot) {
+  const fw = im.width / n, w = fw * ht / im.height, sr = shadowR, pad = 3;
+  const W = Math.max(w, sr * 2) + pad * 2, H = ht + pad * 2 + sr * 0.5, top = -H / 2 + pad, bot = top + ht, out = [];
+  for (let i = 0; i < n; i++) {
+    const sp = sprite(W, H, (g, sh) => {
+      if (sh) oval(g, 0, bot - sr * 0.1, sr, sr * 0.3, C.shadow);
+      g.drawImage(im, i * fw, 0, fw, im.height, -w / 2, top, w, ht);
+    });
+    sp.oy = foot - bot; out.push(sp);
+  }
+  return out;
 }
 
 function customer(d) {
-  const r = d.r, size = Math.ceil(r * 2 + (d.crown ? 30 : 10));
+  const r = d.r, size = Math.ceil(r * 2 + 10);
   return sprite(size, size, (g, sh) => {
     if (sh) oval(g, 0, r * 0.95, r * 0.85, r * 0.3, C.shadow);
     dot(g, 0, 0, r, d.col);
-    dot(g, -r * 0.35, -r * 0.42, r * 0.28, 'rgba(255,255,255,.24)');
     g.lineWidth = 2; g.strokeStyle = C.ink; g.beginPath(); g.arc(0, 0, r, 0, TAU); g.stroke();
     dot(g, -r * 0.3, -r * 0.2, r * 0.27, '#fff'); dot(g, r * 0.38, -r * 0.2, r * 0.27, '#fff');
     dot(g, -r * 0.2, -r * 0.17, r * 0.12, C.ink); dot(g, r * 0.48, -r * 0.17, r * 0.12, C.ink);
-    if (d.angry) {
-      g.lineWidth = Math.max(1.6, r * 0.12); g.beginPath();
-      g.moveTo(-r * 0.62, -r * 0.64); g.lineTo(-r * 0.08, -r * 0.42);
-      g.moveTo(r * 0.78, -r * 0.64); g.lineTo(r * 0.2, -r * 0.42); g.stroke();
-    }
     oval(g, r * 0.08, r * 0.42, r * 0.4, r * 0.3, '#3b0d1a');
-    oval(g, r * 0.08, r * 0.56, r * 0.22, r * 0.12, '#ff7d8f');
-    if (d.crown) {
-      const y = -r * 0.86;
-      g.fillStyle = C.bulb; g.strokeStyle = C.ink; g.lineWidth = 2; g.beginPath();
-      g.moveTo(-r * 0.5, y); g.lineTo(-r * 0.5, y - 11); g.lineTo(-r * 0.25, y - 5); g.lineTo(0, y - 13);
-      g.lineTo(r * 0.25, y - 5); g.lineTo(r * 0.5, y - 11); g.lineTo(r * 0.5, y); g.closePath(); g.fill(); g.stroke();
-    }
   });
 }
 function coinSprite(fill, edge, r) {
@@ -404,7 +473,6 @@ function coinSprite(fill, edge, r) {
     if (sh) oval(g, 0, r + 1, r * 0.8, 2.2, C.shadow);
     dot(g, 0, 0, r, fill);
     g.lineWidth = 1.6; g.strokeStyle = edge; g.beginPath(); g.arc(0, 0, r - 0.8, 0, TAU); g.stroke();
-    g.fillStyle = edge; g.fillRect(-r * 0.3, -r * 0.3, r * 0.6, r * 0.6);
   });
 }
 function glow(rgb, px, stops) {
@@ -413,48 +481,43 @@ function glow(rgb, px, stops) {
   for (const [p, a] of stops) gr.addColorStop(p, `rgba(${rgb},${a})`);
   g.fillStyle = gr; g.fillRect(0, 0, px, px); return c;
 }
-function drawnPlayer() {
-  return sprite(44, 44, (g, sh) => {
-    const r = 14;
-    if (sh) oval(g, 0, r * 0.98, r * 0.85, r * 0.3, C.shadow);
-    dot(g, 0, 0, r, '#ffdcae');
-    g.fillStyle = C.paper; g.beginPath(); g.arc(0, 0, r, 0.14 * Math.PI, 0.86 * Math.PI); g.closePath(); g.fill();
-    g.fillStyle = C.bulb; g.beginPath(); g.arc(0, 0, r, 1.1 * Math.PI, 1.9 * Math.PI); g.closePath(); g.fill();
-    g.lineWidth = 2; g.strokeStyle = C.ink; g.beginPath(); g.arc(0, 0, r, 0, TAU); g.stroke();
-    dot(g, 2.5, 0, 1.8, C.ink); dot(g, 8.5, 0, 1.8, C.ink);
-  });
-}
 function drawnTile() {   // 200 units of staggered paving, used when the ground pictures are missing
   const t = document.createElement('canvas'); t.width = t.height = 400;
   const g = t.getContext('2d'); g.scale(2, 2); g.fillStyle = C.ground; g.fillRect(0, 0, 200, 200);
-  let s = 11; const r = () => (s = (s * 16807) % 2147483647) / 2147483647;
-  for (let i = 0; i < 80; i++) { g.fillStyle = r() < 0.5 ? 'rgba(255,255,255,.055)' : 'rgba(0,0,0,.25)'; const w = 1 + r() * 2.2; g.fillRect(2 + r() * 194, 2 + r() * 194, w, w); }
   g.strokeStyle = 'rgba(255,244,220,.06)'; g.lineWidth = 1.5; g.beginPath();
   g.moveTo(0, 0.75); g.lineTo(200, 0.75); g.moveTo(0, 100); g.lineTo(200, 100);
   g.moveTo(0.75, 0); g.lineTo(0.75, 100); g.moveTo(100, 100); g.lineTo(100, 200); g.stroke();
   return t;
 }
+const framesOf = d => d.fr || (d.fr = ART[d.key] ? walk(ART[d.key], 4, d.ht, d.r * 0.9, d.r * 0.8) : [customer(d)]);
+function heroOf(si) {   // both strips were cut at 220 px per 50 units, so the vendor keeps the same size when stopping
+  if (SPR.hero[si]) return SPR.hero[si];
+  const run = ART[HERO[si]], idle = ART[HERO[si] + '_idle'], u = 50 / 220, fb = [coinSprite('#ffdcae', C.ink, 13)];
+  return (SPR.hero[si] = { run:run ? walk(run, 8, run.height * u, 13, 11) : fb, idle:idle ? walk(idle, 4, idle.height * u, 13, 11) : null });
+}
+const IDLE = [0, 1, 1, 3, 0, 0, 1, 1, 3, 0, 0, 1, 2, 3, 0, 0];   // breathe twice, blink on the third breath
 function buildSprites() {
-  for (const k in ENEMY) { const d = ENEMY[k]; d.spr = ART[k] ? pic(ART[k], d.ht, d.r * 0.9, d.r * 0.8) : customer(d); }
-  SPR.player = ART.player ? pic(ART.player, 48, 13, 11) : drawnPlayer();
-  SPR.bill1 = ART.bill1 ? pic(ART.bill1, 19, 6) : coinSprite('#e39a58', '#7d4416', 6);
-  SPR.bill5 = ART.bill5 ? pic(ART.bill5, 23, 7) : coinSprite('#e8eef6', '#69748a', 7.5);
-  SPR.bill25 = ART.bill25 ? pic(ART.bill25, 29, 9) : coinSprite(C.bulb, '#9a6410', 9.5);
-  SPR.tea = ART.tea ? pic(ART.tea, 26, 7) : coinSprite('#d9a56e', C.ink, 8);
-  SPR.chest = ART.chest ? pic(ART.chest, 32, 13) : coinSprite(C.red, C.bulb, 12);
-  SPR.pearl = ART.pearl ? pic(ART.pearl, 12) : sprite(14, 14, g => { dot(g, 0, 0, 5.8, '#ffb86b'); dot(g, 0, 0, 4.4, '#2b160c'); });
-  SPR.sausage = ART.sausage ? pic(ART.sausage, 34, 0, undefined, 0.72) : sprite(38, 16, g => {
-    g.strokeStyle = C.ink; g.lineWidth = 12.5; g.beginPath(); g.moveTo(-8, 0); g.lineTo(9, 0); g.stroke();
-    g.strokeStyle = '#d6492f'; g.lineWidth = 9; g.beginPath(); g.moveTo(-8, 0); g.lineTo(9, 0); g.stroke(); });
-  SPR.skewer = ART.skewer ? pic(ART.skewer, 28) : sprite(28, 10, g => {
-    g.strokeStyle = C.stick; g.lineWidth = 2; g.beginPath(); g.moveTo(-13, 0); g.lineTo(13, 0); g.stroke();
-    for (const x of [-8, -2, 4]) dot(g, x, 0, 3.6, '#a8552a'); });
+  for (const k in ENEMY) ENEMY[k].fr = null;
+  SPR.hero = [];
+  const P = (k, size, sr, rot, fb) => ART[k] ? pic(ART[k], size, sr, rot) : fb;
+  SPR.bill1 = P('bill1', 19, 6, 0, coinSprite('#e39a58', '#7d4416', 6));
+  SPR.bill5 = P('bill5', 23, 7, 0, coinSprite('#e8eef6', '#69748a', 7.5));
+  SPR.bill25 = P('bill25', 29, 9, 0, coinSprite(C.bulb, '#9a6410', 9.5));
+  SPR.bento = P('bento', 26, 9, 0, coinSprite('#d9a56e', C.ink, 9));
+  SPR.chest = P('chest', 32, 13, 0, coinSprite(C.red, C.bulb, 12));
+  SPR.pearl = P('pearl', 12, 0, 0, coinSprite('#2b160c', '#ffb86b', 5));
+  SPR.qqball = P('qqball', 15, 0, 0, coinSprite('#e8a23a', '#8a4b10', 6));
+  SPR.cutlet = P('cutlet', 30, 0, 0, coinSprite('#d9913a', '#7a4410', 12));
+  SPR.sausage = P('sausage', 34, 0, 0.72, coinSprite('#d6492f', C.ink, 8));
+  SPR.skewer = P('skewer', 28, 0, 0, coinSprite('#a8552a', C.stick, 5));
+  SPR.dart = P('dart', 22, 0, 0, coinSprite('#ff8a3a', C.red, 4));
+  SPR.shard = P('shard', 16, 0, 0, coinSprite(C.ice, '#fff', 5));
   SPR.stool = ART.stool ? pic(ART.stool, 30, 11) : null;
   SPR.lantern = ART.lantern ? pic(ART.lantern, 26) : null;
   SPR.pools = ['255,160,60', '255,84,96', '255,210,90', '80,220,200'].map(rgb => glow(rgb, 200, [[0, 0.22], [0.5, 0.09], [1, 0]]));
   SPR.bulbs = ['255,207,74', '255,96,84', '255,244,220', '69,224,192'].map(rgb => glow(rgb, 32, [[0, 1], [0.2, 1], [0.28, 0.4], [1, 0]]));
   const tile = drawnTile();
-  SPR.ground = [0, 1, 2].map(i => ART['ground' + (i + 1)] || tile);
+  SPR.ground = STAGES.map((_, i) => ART['ground' + (i + 1)] || tile);
 }
 
 /* ---------- audio (starts after the first tap) ---------- */
@@ -475,6 +538,9 @@ function tone(f, dur, type, vol, slide, delay) {
 const thr = (k, ms) => { const n = performance.now(); if (n - (lastS[k] || 0) < ms) return false; lastS[k] = n; return true; };
 const sfx = {
   shoot() { if (thr('s', 70)) tone(900, 0.05, 'triangle', 0.05, -350); },
+  swish() { if (thr('w', 120)) tone(300, 0.12, 'triangle', 0.05, 200); },
+  boing() { if (thr('b', 60)) tone(620, 0.06, 'sine', 0.05, 260); },
+  ice()   { tone(1400, 0.25, 'sine', 0.06, -900); tone(1800, 0.18, 'triangle', 0.04, -1200, 0.03); },
   hit()   { if (thr('h', 60)) tone(240, 0.04, 'square', 0.035, -90); },
   kill()  { if (thr('k', 45)) tone(380, 0.07, 'square', 0.05, -220); },
   coin(n) { if (thr('c', 35)) tone(520 * Math.pow(2, n / 12), 0.08, 'sine', 0.1); },
@@ -498,33 +564,47 @@ const hudCache = {};
 const joy = { on:false, id:null, ox:0, oy:0, x:0, y:0 };
 const keys = new Set();
 const dbgIn = { on:false, x:0, y:0 };
-const save = { unlock:1, best:[0, 0, 0], clear:[false, false, false], manual:false };
+const save = { unlock:1, best:STAGES.map(() => 0), clear:STAGES.map(() => false), manual:false };
 
 function newGame(si) {
-  const st = STAGES[si];
+  const st = STAGES[si], it = {};
+  for (const k in ITEMS) it[k] = 0;
+  it[st.tool] = 1;
   G = {
     si, st, t:0, px:0, py:0, face:1, moving:false, hp:100, maxHp:100, inv:0, dead:false, cleared:false,
     lvl:1, xp:0, need:need(1), pending:0, kills:0, fk:0, money:0, slain:{}, qdone:st.quests.map(() => false), bossOn:false, boss:null,
-    it:{ pearl:1, tofu:0, sausage:0, slipper:0, purse:0, rice:0, straw:0, chili:0 },
-    cdP:0.5, cdT:0, orb:0, spawnAcc:0, nextElite:st.elite[0], ringI:0, nextRing:st.rings[0],
-    enemies:[], bullets:[], shots:[], coins:[], texts:[], parts:[], fx:[], saus:[],
-    shake:0, hurt:0, combo:0, comboT:0, glow:0,
+    it, cdP:0.5, cdT:0, cdC:0.6, cdQ:0.5, cdI:1, orb:0, spawnAcc:0, nextElite:st.elite[1], ringI:0, nextRing:st.rings[0],
+    enemies:[], bullets:[], booms:[], shots:[], coins:[], texts:[], parts:[], fx:[], saus:[],
+    shake:0, hurt:0, combo:0, comboT:0, glow:0, ap:0, ip:0,
   };
 }
 const dmgMul = () => 1 + 0.25 * G.it.chili;
 const cdMul = () => Math.pow(0.85, G.it.straw);
 const moveSpeed = () => 150 * (1 + 0.2 * G.it.slipper);
 const pickR = () => 70 * (1 + 0.6 * G.it.purse);
-const tofuR = () => 64 + 18 * ((G.it.tofu >= 2 ? 1 : 0) + (G.it.tofu >= 4 ? 1 : 0));
+const at = (l, n) => l >= n ? 1 : 0;   // 1 once the weapon has reached level n
+const owned = () => Object.keys(ITEMS).filter(k => ITEMS[k].weapon && G.it[k] > 0).length;
 function pearlStat() {
   const l = G.it.pearl;
-  return { n:1 + (l >= 2 ? 1 : 0) + (l >= 3 ? 1 : 0) + (l >= 5 ? 2 : 0), dmg:12 * (1 + (l >= 2 ? 0.3 : 0) + (l >= 4 ? 0.5 : 0)),
-           pierce:(l >= 3 ? 1 : 0) + (l >= 5 ? 1 : 0), cd:0.65 * (l >= 4 ? 0.71 : 1) };
+  return { n:1 + at(l, 2) + at(l, 3) + 2 * at(l, 5), dmg:12 * (1 + 0.3 * at(l, 2) + 0.5 * at(l, 4)), pierce:at(l, 3) + at(l, 5), cd:0.65 * (l >= 4 ? 0.71 : 1) };
 }
-function tofuDmg() { const l = G.it.tofu; return 4 * (1 + (l >= 2 ? 0.75 : 0) + (l >= 4 ? 0.75 : 0)) * (l >= 5 ? 2 : 1); }
+const tofuR = () => 64 + 18 * (at(G.it.tofu, 2) + at(G.it.tofu, 4));
+const tofuDmg = () => { const l = G.it.tofu; return 4 * (1 + 0.75 * (at(l, 2) + at(l, 4))) * (l >= 5 ? 2 : 1); };
 function sausageStat() {
   const l = G.it.sausage;
-  return { n:[0, 2, 3, 3, 4, 6][l], dmg:14 * (l >= 3 ? 1.6 : 1) * (l >= 5 ? 1.4 : 1), spin:2.6 * (l >= 3 ? 1.3 : 1), R:l >= 4 ? 84 : 66 };
+  return { n:[0, 3, 4, 4, 5, 7][l], dmg:14 * (l >= 3 ? 1.6 : 1) * (l >= 5 ? 1.4 : 1), spin:2.6 * (l >= 3 ? 1.3 : 1), R:l >= 4 ? 84 : 66 };
+}
+function cutletStat() {
+  const l = G.it.cutlet;
+  return { n:1 + at(l, 2) + at(l, 4), dmg:18 * (l >= 3 ? 1.5 : 1) * (l >= 5 ? 1.5 : 1), range:l >= 3 ? 1.3 : 1, cd:1.5 * (l >= 4 ? 0.75 : 1), size:l >= 5 ? 1.6 : 1 };
+}
+function qqStat() {
+  const l = G.it.qq;
+  return { n:1 + at(l, 3) + at(l, 4), bounce:2 + 2 * at(l, 2) + 2 * at(l, 4) + 3 * at(l, 5), dmg:11 * (l >= 3 ? 1.4 : 1) * (l >= 5 ? 1.6 : 1), cd:1.2 };
+}
+function iceStat() {
+  const l = G.it.ice;
+  return { R:110 + 25 * (at(l, 2) + at(l, 4)), dmg:16 * (l >= 2 ? 1.5 : 1) * (l >= 5 ? 2 : 1), frz:1 * (l >= 3 ? 2 : 1) * (l >= 5 ? 1.3 : 1), cd:2.2 * (l >= 4 ? 0.7 : 1) };
 }
 
 /* ---------- spawning ---------- */
@@ -537,10 +617,11 @@ function spawnPos() {
   return [G.px + hw, G.py - hh + p];
 }
 function spawn(type, x, y) {
-  const d = ENEMY[type], m = d.boss ? 1 : 1 + G.t / 60 * G.st.hpGrow;
+  const d = ENEMY[type], m = d.boss ? 1 : 1 + G.t / 60 * G.st.hpGrow * (d.elite ? 0.5 : 1);
   if (x === undefined) [x, y] = spawnPos();
+  framesOf(d);
   const e = { id:EID++, d, x, y, r:d.r, hp:d.hp * m, maxHp:d.hp * m, spd:d.spd * (d.elite ? 1 : rnd(0.9, 1.1)), kx:0, ky:0, flash:0,
-              ph:Math.random() * TAU, sh:0, dead:false, at:rnd(1, 2.5), mode:0, mt:rnd(0.5, 1.5), ux:0, uy:0 };
+              ph:Math.random() * TAU, sh:0, bh:0, frz:0, still:false, dead:false, at:rnd(1, 2.5), mode:0, mt:rnd(0.5, 1.5), su:6, spin:0, ux:0, uy:0 };
   G.enemies.push(e);
   return e;
 }
@@ -549,17 +630,17 @@ function pickType() {   // a kind joins the mix at its first second and ramps to
   const w = st.mix.map(([, t0, wt]) => { const v = t < t0 ? 0 : wt * Math.min(1, 0.3 + (t - t0) / 45); sum += v; return v; });
   let r = Math.random() * sum;
   for (let i = 0; i < w.length; i++) { r -= w[i]; if (r < 0) return st.mix[i][0]; }
-  return 'walker';
+  return st.mix[0][0];
 }
 function spawnTick(dt) {
   const st = G.st, t = G.t;
-  G.spawnAcc += (st.rate[0] + t * st.rate[1]) * dt;
+  G.spawnAcc += (st.rate[0] + t * st.rate[1]) * (G.boss ? 0.5 : 1) * dt;   // fewer customers while the boss is out
   while (G.spawnAcc >= 1) { G.spawnAcc--; if (G.enemies.length < st.cap) spawn(pickType()); }
-  if (t >= G.nextElite) { G.nextElite += st.elite[1]; spawn('critic'); toast('美食評論家來了！打倒他會掉寶箱'); sfx.elite(); }
+  if (t >= G.nextElite) { G.nextElite += st.elite[2]; spawn(st.elite[0]); toast(ENEMY[st.elite[0]].name + '來了！打倒會掉寶箱'); sfx.elite(); }
   if (t >= G.nextRing) {
     G.ringI++; G.nextRing = G.ringI < st.rings.length ? st.rings[G.ringI] : G.nextRing + 110;
     const n = st.ringN, R = Math.hypot(VW, VH) / 2 + 30;
-    for (let i = 0; i < n; i++) { const a = i / n * TAU; spawn('walker', G.px + Math.cos(a) * R, G.py + Math.sin(a) * R); }
+    for (let i = 0; i < n; i++) { const a = i / n * TAU; spawn(st.mix[0][0], G.px + Math.cos(a) * R, G.py + Math.sin(a) * R); }
     toast('一大群客人包圍過來了！'); sfx.elite();
   }
 }
@@ -569,18 +650,19 @@ function questText(q) {
   if (q.k === 'kills') return '擊退 ' + q.n + ' 位客人';
   if (q.k === 'money') return '營業額 NT$' + nt(q.n);
   if (q.k === 'slay') return '打倒 ' + q.n + ' 位' + ENEMY[q.e].name;
-  return '打倒夜市霸王';
+  return '打倒' + ENEMY[G.st.boss].name;
 }
-const questVal = q => q.k === 'kills' ? G.kills : q.k === 'money' ? G.money : (G.slain[q.k === 'boss' ? 'boss' : q.e] || 0);
+const questVal = q => q.k === 'kills' ? G.kills : q.k === 'money' ? G.money : (G.slain[q.k === 'boss' ? G.st.boss : q.e] || 0);
 function checkQuests() {
-  const qs = G.st.quests;
+  const st = G.st, qs = st.quests;
   qs.forEach((q, i) => {
     if (G.qdone[i] || (q.k === 'boss' && !G.bossOn) || questVal(q) < q.n) return;
     G.qdone[i] = true; toast('任務完成：' + questText(q)); sfx.quest();
   });
   const bi = qs.findIndex(q => q.k === 'boss');   // the boss only shows up once every other quest is done
   if (bi >= 0 && !G.bossOn && qs.every((q, i) => i === bi || G.qdone[i])) {
-    G.bossOn = true; G.boss = spawn('boss'); toast('最後任務：打倒夜市霸王！'); sfx.boss();
+    G.bossOn = true; G.boss = spawn(st.boss); el.bossname.textContent = ENEMY[st.boss].name;
+    toast('最後任務：打倒' + ENEMY[st.boss].name + '！'); sfx.boss();
   }
   if (G.qdone.every(Boolean)) G.cleared = true;
 }
@@ -621,17 +703,17 @@ function hit(e, base, kx, ky, small) {
   if (e.hp <= 0) kill(e); else sfx.hit();
 }
 function drop(x, y, v) {
-  if (G.coins.length >= 350) { const c = G.coins[(Math.random() * G.coins.length) | 0]; if (!c.tea && !c.chest) { c.v += v; return; } }
-  G.coins.push({ x, y, v, tea:false, chest:false, s:0, age:0, mag:false, dead:false });
+  if (G.coins.length >= 350) { const c = G.coins[(Math.random() * G.coins.length) | 0]; if (!c.food && !c.chest) { c.v += v; return; } }
+  G.coins.push({ x, y, v, food:false, chest:false, s:0, age:0, mag:false, dead:false });
 }
-function pickup(x, y, kind) { G.coins.push({ x, y, v:0, tea:kind === 'tea', chest:kind === 'chest', s:0, age:0, mag:false, dead:false }); }
+function pickup(x, y, kind) { G.coins.push({ x, y, v:0, food:kind === 'food', chest:kind === 'chest', s:0, age:0, mag:false, dead:false }); }
 function kill(e) {
   const d = e.d;
   e.dead = true; G.kills++; G.fk++; G.slain[d.key] = (G.slain[d.key] || 0) + 1;
   if (d.boss) { for (let i = 0; i < 10; i++) drop(e.x + rnd(-50, 50), e.y + rnd(-40, 40), d.xp); G.boss = null; shake(0.6); }
   else drop(e.x, e.y, d.xp);
-  if (d.elite && !d.boss) { pickup(e.x + 18, e.y, 'chest'); pickup(e.x - 16, e.y + 6, 'tea'); }
-  else if (!d.elite && Math.random() < 0.01) pickup(e.x + 10, e.y, 'tea');
+  if (d.elite && !d.boss) { pickup(e.x + 18, e.y, 'chest'); pickup(e.x - 16, e.y + 6, 'food'); }
+  else if (!d.elite && Math.random() < 0.01) pickup(e.x + 10, e.y, 'food');
   for (let i = 0; i < (d.elite ? 16 : 5); i++) part(e.x, e.y - d.ht * 0.4, d.col);
   if (d.elite) { shake(0.35); ring(e.x, e.y - d.ht * 0.4, 260, 0.35, C.paper, 5); }
   sfx.kill();
@@ -640,13 +722,14 @@ function hurtPlayer(dmg) {
   G.hp -= dmg; G.inv = 0.5; G.hurt = 1; shake(0.3); sfx.hurt();
   if (G.hp <= 0) { G.hp = 0; G.dead = true; }
 }
-function enemyShot(x, y, ux, uy, spd, dmg) { if (G.shots.length < 140) G.shots.push({ x, y, vx:ux * spd, vy:uy * spd, life:3, dmg, dead:false }); }
-function nearest(n, R) {
+function enemyShot(x, y, ux, uy, spd, dmg, k) { if (G.shots.length < 160) G.shots.push({ x, y, vx:ux * spd, vy:uy * spd, life:3, dmg, k, dead:false }); }
+function nearest(n, R) {   // the n closest customers within R; bosses, then elites, count as much closer than they are
   const out = [], ds = [], R2 = R * R;
   for (const e of G.enemies) {
     if (e.dead) continue;
-    const dx = e.x - G.px, dy = e.y - G.py, d2 = dx * dx + dy * dy;
-    if (d2 > R2) continue;
+    const dx = e.x - G.px, dy = e.y - G.py, raw = dx * dx + dy * dy;
+    if (raw > R2) continue;
+    const d2 = raw * (e.d.boss ? 0.01 : e.d.elite ? 0.2 : 1);
     let i = ds.length;
     if (i < n) { ds.push(d2); out.push(e); }
     else if (d2 < ds[n - 1]) { i = n - 1; ds[i] = d2; out[i] = e; }
@@ -655,19 +738,29 @@ function nearest(n, R) {
   }
   return out;
 }
+function nextTarget(from, skip) {   // where a sweet potato ball bounces to
+  let best = null, bd = 210 * 210;
+  for (const e of G.enemies) {
+    if (e.dead || skip.includes(e.id)) continue;
+    const dx = e.x - from.x, dy = e.y - from.y, d2 = dx * dx + dy * dy;
+    if (d2 < bd) { bd = d2; best = e; }
+  }
+  return best;
+}
+const aimAt = (x, y, t) => Math.atan2(t.y - t.d.ht * 0.3 - y, t.x - x);
 function collect(c) {
-  if (c.tea) { G.hp = Math.min(G.maxHp, G.hp + 25); addText(G.px, G.py - 40, '+25', 'heal'); sfx.heal(); return; }
+  if (c.food) { G.hp = Math.min(G.maxHp, G.hp + 30); addText(G.px, G.py - 40, '+30', 'heal'); sfx.heal(); return; }
   if (c.chest) { openChest(); return; }
-  G.xp += c.v; G.money += c.v * 100; G.combo = Math.min(24, G.combo + 1); G.comboT = 0.9; sfx.coin(G.combo);
+  G.xp += c.v * G.st.xpMul; G.money += c.v * 100; G.combo = Math.min(24, G.combo + 1); G.comboT = 0.9; sfx.coin(G.combo);
   while (G.xp >= G.need) { G.xp -= G.need; G.lvl++; G.need = need(G.lvl); G.pending++; }
 }
 
 /* ---------- upgrades: picked for you, no pause ---------- */
-function autoPick() {   // keep weapons growing, add a new one while you have fewer than three, feed rice when hurt
-  const it = G.it, owned = Object.keys(ITEMS).filter(k => ITEMS[k].weapon && it[k] > 0).length, pool = [];
+function autoPick() {   // keep weapons growing, add new ones while a slot is free, feed rice when hurt
+  const it = G.it, free = owned() < SLOTS, pool = [];
   for (const k in ITEMS) {
     const d = ITEMS[k], l = it[k]; if (l >= d.max) continue;
-    let w = d.weapon ? (l ? 3 + l : owned < 3 ? 4 : 0) : (l ? 2.2 : 1.6);
+    let w = d.weapon ? (l ? 3 + l : free ? 2.2 : 0) : (l ? 2.2 : 1.6);
     if (k === 'rice' && G.hp < G.maxHp * 0.5) w += 5;
     if (k === 'chili' || k === 'straw') w += 0.6;
     if (w > 0) pool.push([k, w]);
@@ -706,7 +799,7 @@ function openChest() {
 
 /* ---------- update ---------- */
 function update(dt) {
-  const g = G; g.t += dt; g.fk = 0;
+  const g = G, st = g.st; g.t += dt; g.fk = 0;
 
   // movement
   let mx = 0, my = 0;
@@ -724,37 +817,47 @@ function update(dt) {
   }
   const sp = moveSpeed();
   g.px += mx * sp * dt; g.py += my * sp * dt;
-  g.moving = !!(mx || my); if (Math.abs(mx) > 0.15) g.face = mx < 0 ? -1 : 1;
+  const mag = Math.hypot(mx, my);
+  if (mag && !g.moving) g.ap = 0;   // start every run from the first footfall
+  g.moving = mag > 0; if (Math.abs(mx) > 0.15) g.face = mx < 0 ? -1 : 1;
+  g.ap += dt * 16 * mag * sp / 150;   // feet keep pace with how fast you actually move
+  g.ip += dt * 6;
   if (g.inv > 0) g.inv -= dt;
   if (g.it.rice) g.hp = Math.min(g.maxHp, g.hp + 0.5 * g.it.rice * dt);
   const px = g.px, py = g.py;
 
   spawnTick(dt);
 
-  // customers walk toward the vendor; some keep their distance, some charge
+  // customers walk toward the vendor; some keep their distance, some charge, bosses throw rings of projectiles
   const dec = Math.max(0, 1 - 9 * dt), farR = Math.hypot(VW, VH) / 2 + 200, slowR = g.it.tofu >= 3 ? tofuR() : 0;
   for (const e of g.enemies) {
     const dd = e.d, dx = px - e.x, dy = py - e.y, d = Math.hypot(dx, dy) || 1;
+    if (e.flash > 0) e.flash -= dt;
+    if (e.frz > 0) { e.frz -= dt; e.still = true; e.x += e.kx * dt; e.y += e.ky * dt; e.kx *= dec; e.ky *= dec; continue; }   // frozen: no moving, no biting
     if (d > farR) { [e.x, e.y] = spawnPos(); e.mode = 0; continue; }   // left behind: walk back in from the edge, so running away is not a strategy
     let s = e.spd, ux = dx / d, uy = dy / d;
     if (dd.ranged) {
       if (d < 180) { ux = -ux; uy = -uy; s *= 0.6; } else if (d < 250) s = 0;
       e.at -= dt;
-      if (e.at <= 0) { e.at = rnd(2.4, 3.2); if (d < 380) { enemyShot(e.x, e.y - 18, dx / d, dy / d, 175, dd.dmg); sfx.throw(); } }
-    } else if (dd.dash) {
+      if (e.at <= 0) { e.at = rnd(2.4, 3.2); if (d < 380) { enemyShot(e.x, e.y - 18, dx / d, dy / d, dd.ranged === 'dart' ? 230 : 175, dd.dmg, dd.ranged); sfx.throw(); } }
+    }
+    if (dd.dash) {
       e.mt -= dt;
       if (e.mode === 0) { if (e.mt <= 0 && d < 260) { e.mode = 1; e.mt = 0.75; e.ux = ux; e.uy = uy; } }
       else if (e.mode === 1) { s = 0; if (e.mt <= 0) { e.mode = 2; e.mt = 0.55; } }
-      else { s = 340; ux = e.ux; uy = e.uy; if (e.mt <= 0) { e.mode = 0; e.mt = 2.4; } }
-    } else if (dd.boss) {
-      e.at -= dt; e.mt -= dt;
-      if (e.at <= 0) { e.at = 3.6; const n = 14, o = Math.random() * TAU; for (let i = 0; i < n; i++) { const a = o + i / n * TAU; enemyShot(e.x, e.y - 40, Math.cos(a), Math.sin(a), 150, 12); } sfx.throw(); }
-      if (e.mt <= 0) { e.mt = 9; for (let i = 0; i < 5; i++) { const a = i / 5 * TAU; spawn('runner', e.x + Math.cos(a) * 70, e.y + Math.sin(a) * 70); } }
+      else { s = dd.boss ? 300 : 340; ux = e.ux; uy = e.uy; if (e.mt <= 0) { e.mode = 0; e.mt = dd.boss ? 4 : 2.4; } }
+    }
+    if (dd.burst) {
+      const [n, every, spd, k] = dd.burst;
+      e.at -= dt; e.su -= dt;
+      if (e.at <= 0) { e.at = every; e.spin += 0.3; for (let i = 0; i < n; i++) { const a = e.spin + i / n * TAU; enemyShot(e.x, e.y - dd.ht * 0.35, Math.cos(a), Math.sin(a), spd, 12, k); } sfx.throw(); }
+      if (e.su <= 0) { e.su = 9; for (let i = 0; i < 5; i++) { const a = i / 5 * TAU; spawn(st.mix[0][0], e.x + Math.cos(a) * 70, e.y + Math.sin(a) * 70); } }
     }
     if (slowR && d < slowR + e.r) s *= 0.65;
+    e.still = s === 0;
     const k = s * dt;
     e.x += ux * k + e.kx * dt; e.y += uy * k + e.ky * dt;
-    e.kx *= dec; e.ky *= dec; if (e.flash > 0) e.flash -= dt;
+    e.kx *= dec; e.ky *= dec;
     const min = e.r + 11;
     if (d < min) { if (g.inv <= 0 && !g.dead) hurtPlayer(dd.dmg); const p = (min - d) / d; e.x -= dx * p; e.y -= dy * p; }
   }
@@ -768,17 +871,34 @@ function update(dt) {
   }
 
   // pearls
-  g.cdP -= dt;
-  if (g.cdP <= 0) {
-    const st = pearlStat(), tg = nearest(st.n, 400);
-    if (tg.length) {
-      g.cdP = st.cd * cdMul();
-      for (let i = 0; i < st.n; i++) {
-        const t = tg[i % tg.length], a = Math.atan2(t.y - t.d.ht * 0.3 - py, t.x - px) + (i >= tg.length ? rnd(-0.28, 0.28) : 0);
-        g.bullets.push({ x:px, y:py - 16, vx:Math.cos(a) * 430, vy:Math.sin(a) * 430, life:1.05, dmg:st.dmg, pierce:st.pierce, hits:[], dead:false });
-      }
-      sfx.shoot();
-    } else g.cdP = 0.12;
+  if (g.it.pearl) {
+    g.cdP -= dt;
+    if (g.cdP <= 0) {
+      const ps = pearlStat(), tg = nearest(ps.n, 400);
+      if (tg.length) {
+        g.cdP = ps.cd * cdMul();
+        for (let i = 0; i < ps.n; i++) {
+          const a = aimAt(px, py, tg[i % tg.length]) + (i >= tg.length ? rnd(-0.28, 0.28) : 0);
+          g.bullets.push({ x:px, y:py - 16, vx:Math.cos(a) * 430, vy:Math.sin(a) * 430, life:1.05, dmg:ps.dmg, pierce:ps.pierce, hits:[], dead:false });
+        }
+        sfx.shoot();
+      } else g.cdP = 0.12;
+    }
+  }
+  // sweet potato balls: like pearls, but each hit bounces on to the next customer
+  if (g.it.qq) {
+    g.cdQ -= dt;
+    if (g.cdQ <= 0) {
+      const qs = qqStat(), tg = nearest(qs.n, 380);
+      if (tg.length) {
+        g.cdQ = qs.cd * cdMul();
+        for (let i = 0; i < qs.n; i++) {
+          const a = aimAt(px, py, tg[i % tg.length]) + (i >= tg.length ? rnd(-0.4, 0.4) : 0);
+          g.bullets.push({ x:px, y:py - 16, vx:Math.cos(a) * 380, vy:Math.sin(a) * 380, life:1.1, dmg:qs.dmg, pierce:0, qq:true, bounce:qs.bounce, hits:[], dead:false });
+        }
+        sfx.shoot();
+      } else g.cdQ = 0.15;
+    }
   }
   for (const b of g.bullets) {
     b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
@@ -786,10 +906,44 @@ function update(dt) {
     eachNear(b.x, b.y, o => {
       if (o.dead || b.hits.includes(o.id)) return;
       const dx = o.x - b.x, dy = o.y - o.d.ht * 0.3 - b.y, rr = o.r + 7;
-      if (dx * dx + dy * dy < rr * rr) {
-        hit(o, b.dmg, b.vx * 0.35, b.vy * 0.35); b.hits.push(o.id);
-        if (b.pierce-- <= 0) { b.dead = true; return false; }
+      if (dx * dx + dy * dy >= rr * rr) return;
+      hit(o, b.dmg, b.vx * 0.35, b.vy * 0.35); b.hits.push(o.id);
+      if (b.qq) {
+        const nx = b.bounce-- > 0 ? nextTarget(o, b.hits) : null;
+        if (nx) { const a = aimAt(b.x, b.y, nx); b.vx = Math.cos(a) * 380; b.vy = Math.sin(a) * 380; b.life = 0.9; sfx.boing(); }
+        else b.dead = true;
+        return false;
       }
+      if (b.pierce-- <= 0) { b.dead = true; return false; }
+    });
+  }
+  // chicken cutlets: thrown out like a boomerang, slow down, then fly back to you
+  if (g.it.cutlet) {
+    g.cdC -= dt;
+    if (g.cdC <= 0) {
+      const cs = cutletStat(), tg = nearest(1, 360);
+      g.cdC = cs.cd * cdMul();
+      const base = tg.length ? aimAt(px, py - 16, tg[0]) : (g.face < 0 ? Math.PI : 0);
+      for (let i = 0; i < cs.n; i++) {
+        const a = base + (i - (cs.n - 1) / 2) * 0.55;
+        g.booms.push({ x:px, y:py - 16, vx:Math.cos(a) * 430 * cs.range, vy:Math.sin(a) * 430 * cs.range, t:0, dmg:cs.dmg, size:cs.size, dead:false });
+      }
+      sfx.swish();
+    }
+  }
+  for (const b of g.booms) {
+    b.t += dt;
+    if (b.t > 0.5) {
+      const dx = px - b.x, dy = py - 16 - b.y, d = Math.hypot(dx, dy) || 1, s = 300 + (b.t - 0.5) * 900;
+      if (d < 24 || b.t > 4) { b.dead = true; continue; }
+      b.vx = dx / d * s; b.vy = dy / d * s;
+    } else { b.vx *= 1 - 1.2 * dt; b.vy *= 1 - 1.2 * dt; }
+    b.x += b.vx * dt; b.y += b.vy * dt;
+    const r0 = 14 * b.size;
+    eachNear(b.x, b.y, o => {
+      if (o.dead || o.bh > g.t) return;
+      const dx = o.x - b.x, dy = o.y - o.d.ht * 0.3 - b.y, rr = o.r + r0;
+      if (dx * dx + dy * dy < rr * rr) { o.bh = g.t + 0.3; hit(o, b.dmg, b.vx * 0.2, b.vy * 0.2); }
     });
   }
   // stinky tofu aura
@@ -801,22 +955,40 @@ function update(dt) {
       for (const e of g.enemies) { if (e.dead) continue; const dx = e.x - px, dy = e.y - py, rr = R + e.r; if (dx * dx + dy * dy < rr * rr) hit(e, dm, 0, 0, true); }
     }
   }
-  // orbiting sausages (they also knock skewers out of the air)
-  g.saus.length = 0;
-  if (g.it.sausage) {
-    const ss = sausageStat();
-    g.orb += ss.spin * dt;
-    for (let i = 0; i < ss.n; i++) {
-      const a = g.orb + i / ss.n * TAU, ca = Math.cos(a), sa = Math.sin(a), sx = px + ca * ss.R, sy = py - 12 + sa * ss.R;
-      g.saus.push(sx, sy);
-      eachNear(sx, sy, o => {
-        if (o.dead || o.sh > g.t) return;
-        const dx = o.x - sx, dy = o.y - o.d.ht * 0.3 - sy, rr = o.r + 12;
-        if (dx * dx + dy * dy < rr * rr) { o.sh = g.t + 0.45; hit(o, ss.dmg, ca * 160, sa * 160); }
-      });
+  // shaved ice: a frost burst that freezes everyone close by
+  if (g.it.ice) {
+    g.cdI -= dt;
+    if (g.cdI <= 0) {
+      const is = iceStat(); g.cdI = is.cd * cdMul();
+      for (const e of g.enemies) {
+        if (e.dead) continue;
+        const dx = e.x - px, dy = e.y - py, rr = is.R + e.r;
+        if (dx * dx + dy * dy < rr * rr) { e.frz = Math.max(e.frz, e.d.boss ? is.frz * 0.3 : is.frz); hit(e, is.dmg, dx * 0.6, dy * 0.6, true); }
+      }
+      ring(px, py - 10, is.R * 3.2, 0.32, C.ice, 9); ring(px, py - 10, is.R * 2.2, 0.3, C.paper, 3);
+      for (let i = 0; i < 12; i++) part(px + rnd(-is.R, is.R) * 0.7, py + rnd(-is.R, is.R) * 0.5, C.ice);
+      sfx.ice();
     }
   }
-  // thrown skewers
+  // orbiting sausages: each one sweeps a wedge from you out to its tip, so customers hugging you get hit too
+  // (they also knock projectiles out of the air)
+  g.saus.length = 0;
+  if (g.it.sausage) {
+    const ss = sausageStat(), cy = py - 12;
+    g.orb += ss.spin * dt;
+    for (let i = 0; i < ss.n; i++) { const a = g.orb + i / ss.n * TAU; g.saus.push(px + Math.cos(a) * ss.R, cy + Math.sin(a) * ss.R); }
+    for (const o of g.enemies) {
+      if (o.dead || o.sh > g.t) continue;
+      const dx = o.x - px, dy = o.y - o.d.ht * 0.3 - cy, d = Math.hypot(dx, dy);
+      if (d > ss.R + 12 + o.r) continue;
+      const ang = Math.atan2(dy, dx), half = Math.atan2(o.r + 12, Math.max(d, 1));
+      for (let i = 0; i < ss.n; i++) {
+        const diff = Math.abs(((ang - g.orb - i / ss.n * TAU) % TAU + TAU * 1.5) % TAU - Math.PI);
+        if (diff < half) { o.sh = g.t + 0.45; hit(o, ss.dmg, dx / (d || 1) * 160, dy / (d || 1) * 160); break; }
+      }
+    }
+  }
+  // thrown skewers and darts
   for (const s of g.shots) {
     s.x += s.vx * dt; s.y += s.vy * dt; s.life -= dt;
     if (s.life <= 0) { s.dead = true; continue; }
@@ -829,6 +1001,7 @@ function update(dt) {
   }
   if (g.fk) g.enemies = g.enemies.filter(e => !e.dead);
   g.bullets = g.bullets.filter(b => !b.dead);
+  if (g.booms.length) g.booms = g.booms.filter(b => !b.dead);
   if (g.shots.length) g.shots = g.shots.filter(s => !s.dead);
   if (g.fk >= 6) shake(0.18);
 
@@ -841,7 +1014,7 @@ function update(dt) {
     if (c.mag) {
       c.s += 1400 * dt; const d = Math.sqrt(d2) || 1, stp = (160 + c.s) * dt;
       if (d <= stp + 12) { c.dead = true; gone = true; collect(c); } else { c.x += dx / d * stp; c.y += dy / d * stp; }
-    } else if (c.tea && d2 > 1500 * 1500) { c.dead = true; gone = true; }   // money and chests stay until picked up
+    } else if (c.food && d2 > 1500 * 1500) { c.dead = true; gone = true; }   // money and chests stay until picked up
   }
   if (gone) g.coins = g.coins.filter(c => !c.dead);
 
@@ -864,26 +1037,23 @@ function update(dt) {
 }
 
 /* ---------- render ---------- */
-function blit(sp, x, y, flip, flash, sc, rot) {
+// over: a same-sized silhouette (white for a hit, light blue while frozen) drawn on top at alpha oa
+function blit(sp, x, y, flip, sc, rot, over, oa) {
   const k = sc || 1, w = sp.w * k, h = sp.h * k;
   y += sp.oy * k;
-  if (flip || rot) {
-    ctx.save(); ctx.translate(x, y); if (rot) ctx.rotate(rot); if (flip) ctx.scale(-1, 1);
-    ctx.drawImage(sp.img, -w / 2, -h / 2, w, h);
-    if (flash) { ctx.globalAlpha *= 0.85; ctx.drawImage(sp.flash, -w / 2, -h / 2, w, h); }
-    ctx.restore();
-  } else {
-    ctx.drawImage(sp.img, x - w / 2, y - h / 2, w, h);
-    if (flash) { const a = ctx.globalAlpha; ctx.globalAlpha = a * 0.85; ctx.drawImage(sp.flash, x - w / 2, y - h / 2, w, h); ctx.globalAlpha = a; }
-  }
+  if (!flip && !rot && !over) { ctx.drawImage(sp.img, x - w / 2, y - h / 2, w, h); return; }
+  ctx.save(); ctx.translate(x, y); if (rot) ctx.rotate(rot); if (flip) ctx.scale(-1, 1);
+  ctx.drawImage(sp.img, -w / 2, -h / 2, w, h);
+  if (over) { ctx.globalAlpha *= oa; ctx.drawImage(over, -w / 2, -h / 2, w, h); }
+  ctx.restore();
 }
 const h2 = (x, y) => { let n = Math.imul(x, 374761393) + Math.imul(y, 668265263) | 0; n = Math.imul(n ^ (n >>> 13), 1274126177); return ((n ^ (n >>> 16)) >>> 0) / 4294967296; };
 
 function drawPlayer(g) {
   if (g.glow > 0) { ctx.globalAlpha = clamp(g.glow * 2, 0, 1); ctx.drawImage(SPR.bulbs[0], g.px - 46, g.py - 62, 92, 92); ctx.globalAlpha = 1; }
   if (g.inv > 0 && g.glow <= 0 && Math.floor(g.t * 20) % 2) ctx.globalAlpha = 0.45;
-  const b = g.moving ? Math.sin(g.t * 14) : 0;
-  blit(SPR.player, g.px, g.py - Math.abs(b) * 2, g.face < 0, false, 1, b * 0.06);
+  const h = heroOf(g.si), sp = g.moving || !h.idle ? h.run[(g.ap | 0) % h.run.length] : h.idle[IDLE[(g.ip | 0) % IDLE.length]];
+  blit(sp, g.px, g.py, g.face < 0);
   ctx.globalAlpha = 1;
   const bw = 34, hpf = clamp(g.hp / g.maxHp, 0, 1);
   ctx.fillStyle = 'rgba(0,0,0,.62)'; ctx.fillRect(g.px - bw / 2 - 1, g.py + 15, bw + 2, 6);
@@ -899,7 +1069,7 @@ function render() {
   const x0 = cx - VW / 2, x1 = cx + VW / 2, y0 = cy - VH / 2, y1 = cy + VH / 2;
   const seen = (x, y, m) => x > x0 - m && x < x1 + m && y > y0 - m && y < y1 + m;
 
-  const tile = SPR.ground[g.st.ground];
+  const tile = SPR.ground[g.si];
   for (let tx = Math.floor(x0 / TILE); tx <= Math.floor(x1 / TILE); tx++)
     for (let ty = Math.floor(y0 / TILE); ty <= Math.floor(y1 / TILE); ty++) ctx.drawImage(tile, tx * TILE, ty * TILE, TILE + 0.5, TILE + 0.5);
   // stall light pooling on the ground
@@ -926,22 +1096,20 @@ function render() {
       dot(ctx, g.px + Math.cos(a) * rr, gy + Math.sin(a) * rr, 9 + 3 * Math.sin(g.t * 2 + i), C.tofu);
     }
     ctx.globalAlpha = 1;
-    ctx.strokeStyle = 'rgba(216,240,110,.5)'; ctx.lineWidth = 2; ctx.setLineDash([10, 9]); ctx.lineDashOffset = reduce ? 0 : -g.t * 30;
-    ctx.beginPath(); ctx.arc(g.px, gy, R, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
   }
   for (const c of g.coins) {
     if (!seen(c.x, c.y, 30)) continue;
     const grow = 0.4 + 0.6 * Math.min(1, c.age * 6);
     if (c.chest) {
       ctx.globalAlpha = 0.6 + 0.3 * Math.sin(g.t * 5); ctx.drawImage(SPR.bulbs[0], c.x - 34, c.y - 44, 68, 68); ctx.globalAlpha = 1;
-      blit(SPR.chest, c.x, c.y - Math.abs(Math.sin(g.t * 3)) * 3, false, false, grow);
-    } else if (c.tea) blit(SPR.tea, c.x, c.y - Math.sin(g.t * 4) * 2, false, false, grow);
-    else blit(c.v >= 25 ? SPR.bill25 : c.v >= 5 ? SPR.bill5 : SPR.bill1, c.x, c.y, false, false, grow);
+      blit(SPR.chest, c.x, c.y - Math.abs(Math.sin(g.t * 3)) * 3, false, grow);
+    } else if (c.food) blit(SPR.bento, c.x, c.y - Math.sin(g.t * 4) * 2, false, grow);
+    else blit(c.v >= 25 ? SPR.bill25 : c.v >= 5 ? SPR.bill5 : SPR.bill1, c.x, c.y, false, grow);
   }
   // dash warnings
   ctx.lineCap = 'round';
   for (const e of g.enemies) if (e.mode === 1 && seen(e.x, e.y, 200)) {
-    ctx.strokeStyle = C.warn; ctx.globalAlpha = 0.5 + 0.5 * Math.sin(g.t * 30); ctx.lineWidth = 12;
+    ctx.strokeStyle = C.warn; ctx.globalAlpha = 0.5 + 0.5 * Math.sin(g.t * 30); ctx.lineWidth = e.d.boss ? 24 : 12;
     ctx.beginPath(); ctx.moveTo(e.x, e.y); ctx.lineTo(e.x + e.ux * 190, e.y + e.uy * 190); ctx.stroke();
   }
   ctx.globalAlpha = 1;
@@ -953,11 +1121,13 @@ function render() {
     if (!drawn && e.y > g.py) { drawPlayer(g); drawn = true; }
     const d = e.d;
     if (!seen(e.x, e.y, d.ht)) continue;
-    const b = Math.sin(g.t * 9 + e.ph), wind = d.ranged && e.at < 0.35 ? 1.12 : 1;
-    const flip = e.mode ? e.ux < 0 : e.x > g.px;
-    blit(d.spr, e.x, e.y - Math.abs(b) * 1.6, flip, e.flash > 0, wind, e.mode === 2 ? 0 : b * 0.07);
+    const fr = d.fr || framesOf(d), f = e.still ? Math.min(1, fr.length - 1) : ((g.t * d.fps + e.ph * 0.64) | 0) % fr.length, sp = fr[f] || fr[0];
+    const flip = e.mode ? e.ux < 0 : e.x > g.px, wind = d.ranged && e.at < 0.35 ? 1.1 : 1;
+    if (e.frz > 0) blit(sp, e.x, e.y, flip, 1, 0, sp.frost(), 0.6);
+    else blit(sp, e.x, e.y, flip, wind, 0, e.flash > 0 ? sp.flash : null, 0.85);
+    if (e.frz > 0) blit(SPR.shard, e.x + d.r * 0.7, e.y - 2, false, 0.9);
     if (d.elite && !d.boss) {
-      const bw = 50, by = e.y + d.spr.oy - d.spr.h / 2 - 4;
+      const bw = 50, by = e.y + sp.oy - sp.h / 2 - 4;
       ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(e.x - bw / 2 - 1, by - 1, bw + 2, 6);
       ctx.fillStyle = C.bulb; ctx.fillRect(e.x - bw / 2, by, bw * clamp(e.hp / e.maxHp, 0, 1), 4);
     }
@@ -968,15 +1138,17 @@ function render() {
     const ss = sausageStat();
     for (let i = 0; i < ss.n; i++) {
       const a = g.orb + i / ss.n * TAU;
-      blit(SPR.sausage, g.px + Math.cos(a) * ss.R, g.py - 12 + Math.sin(a) * ss.R, false, false, 1, a + Math.PI / 2);
+      blit(SPR.sausage, g.px + Math.cos(a) * ss.R, g.py - 12 + Math.sin(a) * ss.R, false, 1, a + Math.PI / 2);
     }
   }
+  for (const b of g.booms) blit(SPR.cutlet, b.x, b.y, false, b.size, b.t * 14);
   for (const b of g.bullets) {
-    ctx.globalAlpha = 0.2;  blit(SPR.pearl, b.x - b.vx * 0.04, b.y - b.vy * 0.04, false, false, 0.8);
-    ctx.globalAlpha = 0.45; blit(SPR.pearl, b.x - b.vx * 0.02, b.y - b.vy * 0.02, false, false, 0.9);
-    ctx.globalAlpha = 1;    blit(SPR.pearl, b.x, b.y);
+    const sp = b.qq ? SPR.qqball : SPR.pearl;
+    ctx.globalAlpha = 0.2;  blit(sp, b.x - b.vx * 0.04, b.y - b.vy * 0.04, false, 0.8);
+    ctx.globalAlpha = 0.45; blit(sp, b.x - b.vx * 0.02, b.y - b.vy * 0.02, false, 0.9);
+    ctx.globalAlpha = 1;    blit(sp, b.x, b.y);
   }
-  for (const s of g.shots) blit(SPR.skewer, s.x, s.y, false, false, 1, Math.atan2(s.vy, s.vx));
+  for (const s of g.shots) blit(SPR[s.k], s.x, s.y, false, 1, Math.atan2(s.vy, s.vx));
   for (const p of g.parts) { ctx.globalAlpha = Math.min(1, p.life * 4); ctx.fillStyle = p.col; ctx.fillRect(p.x - p.sz / 2, p.y - p.sz / 2, p.sz, p.sz); }
   for (const f of g.fx) { ctx.globalAlpha = clamp(f.life / f.max, 0, 1); ctx.strokeStyle = f.col; ctx.lineWidth = f.w; ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, TAU); ctx.stroke(); }
   ctx.globalAlpha = 1;
@@ -991,7 +1163,7 @@ function render() {
     ctx.stroke();
     for (let x = xs; x <= x1 + 40; x += 40) {
       const n = Math.round(x / 40);
-      if (SPR.lantern && ((n % 4) + 4) % 4 === 0) blit(SPR.lantern, x, sag(x) + 12, false, false, 1, Math.sin(g.t * 1.5 + n) * 0.06);
+      if (SPR.lantern && ((n % 4) + 4) % 4 === 0) blit(SPR.lantern, x, sag(x) + 12, false, 1, Math.sin(g.t * 1.5 + n) * 0.06);
       else ctx.drawImage(SPR.bulbs[(((n + ry) % 4) + 4) % 4], x - 8, sag(x) - 5, 16, 16);
     }
   }
@@ -1087,8 +1259,8 @@ function setState(s) {
   dirty = true;
 }
 
-function card(stampNode, title, desc, tag, onPick, disabled) {
-  const b = document.createElement('button'); b.type = 'button'; b.className = 'card'; b.disabled = !!disabled;
+function card(stampNode, title, desc, tag, onPick) {
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'card';
   const st = document.createElement('span'); st.className = 'stamp'; st.setAttribute('aria-hidden', 'true'); st.append(stampNode);
   const tx = document.createElement('span'); tx.className = 'ctext';
   const nm = document.createElement('strong'); nm.textContent = title;
@@ -1097,27 +1269,40 @@ function card(stampNode, title, desc, tag, onPick, disabled) {
   b.append(st, tx, tg); b.addEventListener('click', onPick);
   return b;
 }
-const stampOf = d => ART[d.icon] ? iconImg(d.icon) : d.ch;
-function renderStages() {
+const stampOf = d => ART[d.icon] ? iconImg(d.icon) : d.name[0];
+const span = (cls, text) => { const s = document.createElement('span'); s.className = cls; if (text) s.textContent = text; return s; };
+function renderStages() {   // one signboard per street: its picture, the headline customer, the vendor's tool, progress
   el.stageCards.textContent = '';
   STAGES.forEach((st, i) => {
-    const open = i < save.unlock;
-    const desc = !open ? '先過' + STAGES[i - 1].name + '才能玩' : save.clear[i] ? st.desc + '（最快 ' + fmt(save.best[i]) + '）' : st.desc;
-    const tag = !open ? '未解鎖' : save.clear[i] ? '已收攤' : '挑戰';
-    el.stageCards.appendChild(card(['一', '二', '三'][i], st.name + '　' + st.place, desc, tag, () => startRun(i), !open));
+    const open = i < save.unlock, star = ENEMY[st.boss || st.elite[0]], tool = ITEMS[st.tool];
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'stage'; b.disabled = !open;
+    b.style.setProperty('--thumb', 'url("assets/stage' + (i + 1) + '.jpg")');
+    b.setAttribute('aria-label', st.name + ' ' + st.place + (open ? '' : '（未解鎖）'));
+    const art = span('sart'); art.append(span('snum', String(i + 1)));
+    const face = ART[star.key];
+    if (face) { const f = span('sface'); f.style.backgroundImage = 'url("' + face.src + '")'; f.style.aspectRatio = (face.width / 4) + ' / ' + face.height; art.append(f); }
+    art.append(span('sbadge' + (save.clear[i] ? ' done' : ''), !open ? '未解鎖' : save.clear[i] ? '已收攤' : '挑戰'));
+    const info = span('sinfo'), nm = document.createElement('strong'); nm.textContent = st.name + '　' + st.place;
+    const meta = span('smeta');
+    if (ART[tool.icon]) meta.append(iconImg(tool.icon));
+    meta.append('主角帶：' + tool.name + (save.clear[i] ? '　最快 ' + fmt(save.best[i]) : ''));
+    info.append(nm, span('sdesc', open ? st.desc : '先過' + STAGES[i - 1].name + '才能玩'), meta);
+    b.append(art, info); b.addEventListener('click', () => startRun(i));
+    el.stageCards.appendChild(b);
   });
   el.btnMode.textContent = save.manual ? '升級：自己選' : '升級：自動挑';
   el.btnMode.setAttribute('aria-pressed', String(save.manual));
 }
 
 function rollChoices() {   // only used when the player turns on "choose upgrades myself"
-  const pool = Object.keys(ITEMS).filter(k => G.it[k] < ITEMS[k].max);
+  const free = owned() < SLOTS;
+  const pool = Object.keys(ITEMS).filter(k => G.it[k] < ITEMS[k].max && (!ITEMS[k].weapon || G.it[k] > 0 || free));
   for (let i = pool.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [pool[i], pool[j]] = [pool[j], pool[i]]; }
   const out = pool.slice(0, 3);
   const fresh = pool.filter(k => ITEMS[k].weapon && G.it[k] === 0);
   if (fresh.length && out.length === 3 && !out.some(k => fresh.includes(k)) && Math.random() < 0.5) out[2] = fresh[0];
-  while (out.length < 3) out.push('heal');
-  return out.slice(0, out.indexOf('heal') + 1 || 3);
+  if (out.length < 3) out.push('heal');
+  return out;
 }
 function renderCards() {
   el.lvTitle.textContent = '升到 Lv ' + (G.lvl - G.pending) + '！選一樣';
@@ -1141,9 +1326,10 @@ function pick(i, force) {
 }
 function startRun(si) {
   audioInit(); newGame(si); for (const k in hudCache) delete hudCache[k];
+  heroOf(si); for (const [k] of G.st.mix) framesOf(ENEMY[k]); framesOf(ENEMY[G.st.elite[0]]);   // cut the animation frames now, not mid-fight
   joy.on = false; keys.clear(); banner.q.length = 0; banner.until = 0;
   buildQuests(); updateBuild(); hudUpdate(); setState('play'); last = performance.now();
-  toast(G.st.name + '「' + G.st.place + '」開張！完成任務就能收攤');
+  toast(G.st.name + '「' + G.st.place + '」開張！今天帶' + ITEMS[G.st.tool].name);
 }
 function endRun(win) {
   const i = G.si, st = G.st, t = G.t, next = win && i + 1 < STAGES.length ? i + 1 : -1, first = win && !save.clear[i];
@@ -1151,7 +1337,7 @@ function endRun(win) {
   if (win) { save.clear[i] = true; if (isBest) save.best[i] = t; if (next > 0) save.unlock = Math.max(save.unlock, next + 1); writeSave(); }
   el.endTitle.textContent = win ? '任務完成，收攤！' : '被吃垮了';
   el.endMsg.textContent = win
-    ? (next > 0 ? (first ? STAGES[next].name + '「' + STAGES[next].place + '」解鎖了！' : '要繼續挑戰' + STAGES[next].name + '嗎？') : '三關全破，你就是夜市之王！')
+    ? (next > 0 ? (first ? STAGES[next].name + '「' + STAGES[next].place + '」解鎖了！主角會改帶' + ITEMS[STAGES[next].tool].name + '。' : '要繼續挑戰' + STAGES[next].name + '嗎？') : '五關全破，你就是夜市之王！')
     : '完成了 ' + G.qdone.filter(Boolean).length + '/' + st.quests.length + ' 個任務。換個走位再試一次。';
   el.eTime.textContent = fmt(t); el.eKills.textContent = G.kills; el.eMoney.textContent = wan(G.money);
   el.eBest.textContent = win ? (isBest ? '最快收攤新紀錄！' : '這關最快 ' + fmt(save.best[i])) : '';
@@ -1253,7 +1439,7 @@ function boot(data) {
 }
 // small handle for automated playtests
 window.__nm = { get g() { return G; }, get state() { return state; }, start:i => startRun(i || 0), step:update,
-  draw:() => { render(); hudUpdate(); }, pick, input:dbgIn, save, art:ART };
+  draw:() => { render(); hudUpdate(); }, pick, input:dbgIn, save, art:ART, stages:STAGES };
 
 const hot = window.claude && window.claude.hot;
 try { if (hot && hot.snapshot) hot.snapshot(() => ({ save })); } catch (e) {}
