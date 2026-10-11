@@ -1,0 +1,4 @@
+node_modules/
+__pycache__/
+_preview_*
+.claude/settings.local.json
