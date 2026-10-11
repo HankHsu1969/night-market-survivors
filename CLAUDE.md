@@ -8,7 +8,7 @@
 - `index.html`：遊戲本體。CSS、HTML、JS 全在這一個檔，沒有框架、沒有建置步驟。
 - `assets/`：H站（Higgsfield）產的圖。
   - `*.webp`：角色動畫，各格並排、一樣大、底邊是地面。客人是 4 格走路，用 `ENEMY` 的鍵名命名。主角每關各兩條：`hero1~5` 是 8 格跑步（騰空那兩格腳離地），`hero1~5_idle` 是 4 格待機（呼吸、眨眼）。兩條都是每 220 像素等於 50 個遊戲單位，主角停下來時大小不會跳。
-  - `*.png`：道具圖示、百元鈔、便當、寶箱、飛行物（珍珠、地瓜球、竹籤、飛鏢、冰晶）、燈籠、塑膠椅，都已去背。
+  - 單張的 `.webp`（最長邊 128 像素）：道具圖示、百元鈔、便當、寶箱、飛行物（珍珠、地瓜球、竹籤、飛鏢、冰晶）、燈籠、塑膠椅，都已去背。
   - `ground1~5.jpg` 是五關的地面磚（可無縫拼接）；`stage1~5.jpg` 是選關卡片的場景插畫；`cover.jpg`（直式）和 `title.jpg`（橫式）是封面。
   - 圖載不到時，遊戲改用 canvas 畫的簡單圖形，照樣能玩。
 - `tools/bot.js`：自動玩家，在頁面裡透過 `window.__nm` 快轉，提供 `runStage(關卡索引, 局數)` 和 `summary()`。
@@ -16,13 +16,14 @@
 - `tools/cut.py`：綠幕素材去背。`cut` 模式切成一張張 PNG；`anim` 模式把分解圖（可以排成好幾列）切成動畫用的 WebP，並保留每格離地的高度。`tools/tile.py`：把地面圖做成無縫地磚。需要 `pip install pillow numpy`。
 - `.claude/launch.json`：預覽用的本機伺服器（`python -m http.server 8765`）。Claude 的內建瀏覽器直接開檔案時讀不到 `assets/`，要用這個。
 - 用一般瀏覽器雙擊 `index.html` 應該也讀得到圖（遊戲只把圖畫上 canvas、不讀像素），但還沒實測過。
+- GitHub：https://github.com/HankHsu1969/night-market-survivors（公開）。GitHub Pages 從 `main` 根目錄發佈，線上試玩：https://hankhsu1969.github.io/night-market-survivors/ 。push 到 `main` 後一兩分鐘就會更新。`.nojekyll` 讓 Pages 直接提供原始檔案。
 
 ## 程式結構（`index.html` 的 `<script>`，依出現順序）
 
 | 區塊 | 重點 |
 |---|---|
 | content tables | `ENEMY`（20 種客人，依關卡分組）、`STAGES`（五關）、`ITEMS`（6 種武器、5 種道具）、`HEAL`（便當）、`need()` |
-| art | `ART_ANIM` / `ART_PNG` / `ART_JPG` 列出要載的圖，`loadArt()` 載入並回報進度 |
+| art | `ART_ANIM` / `ART_ICON` / `ART_JPG` 列出要載的圖。`loadArt()` 先要第一關用得到的（`FIRST`），這些載完封面就能點；其他的在背景繼續載，晚到的圖會重建 sprite 換掉臨時圖形（最多等 20 秒就放行） |
 | sprites | `walk()` 把動畫條切成一格格 sprite；`pic()` 做單張圖；`framesOf()`（客人）、`heroOf()`（主角的 `run` 和 `idle`）用到才切；每格另有白色（被打）和冰藍色（被凍住）剪影 |
 | audio | `tone()` 合成音效，`sfx` 是各種音效的入口 |
 | state | `G` 是一局的全部狀態，`newGame(關卡)` 重設並給這關的起始武器；`pearlStat()`、`cutletStat()` 等算出目前數值 |
@@ -102,6 +103,6 @@
 - 介面文字用繁體中文，用詞要讓初學者看得懂。
 - 所有顏色用 `:root` 的 CSS 變數；canvas 裡的顏色用 `C` 物件。
 - 新增武器：在 `ITEMS` 加一筆 → `newGame()` 會自動給 0 級 → `update()` 加攻擊邏輯 → `render()` 加畫面 → 確認 `autoPick()` 權重合理。
-- 新增客人：在 `ENEMY` 加一筆（`ht` 是畫出來的高度、`fps` 是動畫速度）→ 放進某關 `STAGES` 的 `mix` → 用 `tools/cut.py anim` 做出同名 `.webp`。`ART_ANIM` 會自動包含 `ENEMY` 的所有鍵名。
+- 新增客人：在 `ENEMY` 加一筆（`ht` 是畫出來的高度、`fps` 是動畫速度）→ 放進某關 `STAGES` 的 `mix` → 用 `tools/cut.py anim` 做出同名 `.webp`。要讓它在第一關就先載，加進 `FIRST`。`ART_ANIM` 會自動包含 `ENEMY` 的所有鍵名。
 - 新圖用 H站產圖（GPT Image 2、medium、16:9、2K），純綠底（#00FF00）、物件之間留空、角色身上不要有綠色。動畫用「同一個角色四格走路循環、朝右、腳在同一條線上」的寫法，並寫明手上拿的東西每一格都要有（或乾脆不拿），不然道具會一下有一下沒有，看起來在閃。切完要逐格檢查。要跟現有畫風一致，就拿第一張角色表當參考圖：Higgsfield job `5c6b802a-67d0-447d-8076-a9e0fea8c688`；場景插畫拿封面 `4c0dd71d-3ab4-40f9-9458-b128667816fb` 當參考。
 - 發佈成 Claude artifact 時，要拿掉 `<!doctype>`、`<html>`、`<head>`、`<body>` 這層外殼，只留裡面的內容，`assets/` 的圖要用 `files` 一起發佈。

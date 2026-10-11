@@ -396,20 +396,32 @@ const need = l => Math.floor(6 + 4 * l + 0.8 * l * l);
 // Customers have 4 frames. The vendor has an 8-frame run (heroN) and a 4-frame idle (heroN_idle) for each stage's tool.
 const HERO = ['hero1', 'hero2', 'hero3', 'hero4', 'hero5'];
 const ART_ANIM = HERO.concat(HERO.map(h => h + '_idle'), Object.keys(ENEMY));
-const ART_PNG = ['tea', 'tofu', 'sausage', 'cutlet', 'qq', 'ice', 'slipper', 'purse', 'rice', 'straw', 'chili', 'bento',
-  'pearl', 'qqball', 'shard', 'skewer', 'dart', 'stool', 'lantern', 'chest', 'bill1', 'bill5', 'bill25'];
+const ART_ICON = ['tea', 'tofu', 'sausage', 'cutlet', 'qq', 'ice', 'slipper', 'purse', 'rice', 'straw', 'chili', 'bento',
+  'pearl', 'qqball', 'shard', 'skewer', 'dart', 'stool', 'lantern', 'chest', 'bill1', 'bill5', 'bill25'];   // single pictures, also .webp
 const ART_JPG = ['ground1', 'ground2', 'ground3', 'ground4', 'ground5', 'stage1', 'stage2', 'stage3', 'stage4', 'stage5'];
 const ART = {};
-function loadArt(onStep) {
-  const all = ART_ANIM.map(n => [n, 'webp']).concat(ART_PNG.map(n => [n, 'png']), ART_JPG.map(n => [n, 'jpg']));
-  let done = 0;
-  const load = Promise.all(all.map(([n, ext]) => new Promise(res => {
-    const im = new Image(), fin = () => { done++; onStep(done / all.length); res(); };
-    im.onload = () => { ART[n] = im; fin(); };
-    im.onerror = fin;
-    im.src = 'assets/' + n + '.' + ext;
-  })));
-  return Promise.race([load, new Promise(res => setTimeout(res, 15000))]);
+// The cover only waits for what the first stage needs. Everything else keeps loading in the background and
+// replaces the drawn stand-ins as it arrives (onLate), so a slow phone never gets stuck with placeholder shapes.
+const FIRST = new Set(HERO.slice(0, 1).concat('hero1_idle', STAGES[0].mix.map(m => m[0]), STAGES[0].elite[0], ART_ICON, ART_JPG.filter(n => n !== 'ground2' && n !== 'ground3' && n !== 'ground4' && n !== 'ground5')));
+function loadArt(onStep, onLate) {
+  const all = ART_ANIM.map(n => [n, 'webp']).concat(ART_ICON.map(n => [n, 'webp']), ART_JPG.map(n => [n, 'jpg']))
+    .sort((a, b) => FIRST.has(b[0]) - FIRST.has(a[0]));   // ask for the first stage's pictures first
+  const total = all.filter(([n]) => FIRST.has(n)).length;
+  let got = 0, open = false;
+  return new Promise(res => {
+    const go = () => { if (!open) { open = true; res(); } };
+    setTimeout(go, 20000);
+    for (const [n, ext] of all) {
+      const im = new Image(), fin = ok => {
+        const late = open;
+        if (ok) ART[n] = im;
+        if (FIRST.has(n)) { onStep(++got / total); if (got === total) go(); }
+        if (ok && late) onLate();
+      };
+      im.onload = () => fin(true); im.onerror = () => fin(false);
+      im.src = 'assets/' + n + '.' + ext;
+    }
+  });
 }
 
 /* ---------- sprites (drawn once, blitted every frame) ---------- */
@@ -1431,7 +1443,9 @@ function boot(data) {
   loadSave(data); buildSprites(); resize(); newGame(0); setState('cover');
   if (window.ResizeObserver) new ResizeObserver(resize).observe(gameEl); else window.addEventListener('resize', resize);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { dirty = true; });
-  loadArt(p => { el.loadfill.style.transform = 'scaleX(' + p + ')'; }).then(() => {
+  let lateT = 0;
+  const late = () => { clearTimeout(lateT); lateT = setTimeout(() => { buildSprites(); dirty = true; if (state === 'menu') renderStages(); }, 400); };
+  loadArt(p => { el.loadfill.style.transform = 'scaleX(' + p + ')'; }, late).then(() => {
     buildSprites(); dirty = true; ready = true;
     el.btnCover.disabled = false; el.btnCover.textContent = '點一下開始';
   });

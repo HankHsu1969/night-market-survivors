@@ -1,8 +1,8 @@
 # 去背切圖：把 H站產的綠幕素材表去掉綠底，找出每個物件，裁切、縮小後存檔。需要 Pillow 和 numpy（pip install pillow numpy）。
 #
-# 一般物件，一個物件存一張 PNG（依由上到下、由左到右的順序對應名稱）：
+# 一般物件，一個物件存一張 WebP（依由上到下、由左到右的順序對應名稱）。遊戲裡的圖示用最長邊 128：
 #   python tools/cut.py cut  素材表.png 輸出資料夾 列數 名稱1,名稱2,... 最長邊像素
-#   例如：python tools/cut.py cut sheet.png cut 1 pearl,skewer,stool 200
+#   例如：python tools/cut.py cut sheet.png cut 1 pearl,skewer,stool 128
 # 動畫分解圖，同一個角色的幾格存成一條橫的 WebP，每格一樣大、頭和身體對準格子中間，
 # 腳底對齊同一列的地面（跑步騰空那幾格會保留離地的高度）。分解圖排成幾列就填列數，由上到下、由左到右：
 #   python tools/cut.py anim 動畫表.png 輸出.webp 格數 高度像素 [列數]
@@ -89,7 +89,7 @@ def cut(src, outdir, rows, names, maxpx):
     for name, c in zip(names, ordered):
         im = crop(rgba, lab, c); s = maxpx / max(im.size)
         if s < 1: im = im.resize((max(1, round(im.width * s)), max(1, round(im.height * s))), Image.LANCZOS)
-        im.save(os.path.join(outdir, name + '.png'), optimize=True); outs.append(im)
+        im.save(os.path.join(outdir, name + '.webp'), 'WEBP', quality=88, method=6); outs.append(im)
         print(name, im.size)
     preview([o.copy() for o in outs], os.path.join(outdir, '_preview_' + os.path.basename(src)))
 
@@ -126,7 +126,7 @@ def anim(src, dst, n, height, rows=1):
     strip = Image.new('RGBA', (cw * n, ch), (0, 0, 0, 0))
     for k, (i, a, l) in enumerate(zip(ims, anchors, lift)): strip.alpha_composite(i, (k * cw + round(left - a) + 1, round(ch - i.height - l)))
     os.makedirs(os.path.dirname(dst) or '.', exist_ok=True)
-    strip.save(dst, 'WEBP', quality=90, method=6)
+    strip.save(dst, 'WEBP', quality=82, method=6)
     preview([strip], os.path.join(os.path.dirname(dst) or '.', '_preview_' + os.path.splitext(os.path.basename(dst))[0] + '.png'))
     print(os.path.basename(dst), '每格', cw, 'x', ch, '離地', [round(l) for l in lift])
 
